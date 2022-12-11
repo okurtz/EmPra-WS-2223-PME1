@@ -38,7 +38,7 @@ preprocessData = function(fileName) {
   isInteraktionsbereitschaftValid = c();
   isAllophilieValid = c();
   
-  rawData = read.table(file = SOURCE_FILE_NAME, header = TRUE, sep=';');
+  rawData = read.table(file = fileName, header = TRUE, sep=';');
   lgr$info('Beginne Vorverarbeitung der Daten. Der ursprüngliche Datensatz hat %i Zeilen.', nrow(rawData));
   
   lgr$info('Lösche die Spalten der anderen Praktikumsgruppen.');
