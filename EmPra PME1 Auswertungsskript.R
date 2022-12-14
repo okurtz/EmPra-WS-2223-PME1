@@ -24,15 +24,17 @@ SERIOUS_PARTICIPATION_ITEM = 'v_11';
 ROW_ID = 'lfdn';
 
 # Wert-Aliase
-VALID_VALUES_ALLOPHILIA = seq(1, 6, by = 0.5);  # Sequence accounts for invalid values being replaced by non-integer means of remaining values
-VALID_VALUES_GENDER = c(1, 2, 3, 6);
-VALID_VALUES_GRADUATION = c(1, 2, 3, 4, 5, 6, 7, 8, 9);
+INVALID_ANSWER_VALUE = -99;
+INVALID_ANSWER_TEXT = 'Keine Angabe/ungültig';
+VALID_VALUES_ALLOPHILIA = seq(1, 6, by = 0.5);  # Sequenz, weil bei fehlenden Werten Mittelwerte verwendet werden, die evtl. nicht-ganzzahlig sind
+VALID_VALUES_GENDER = c(INVALID_ANSWER_VALUE, 1, 2, 3, 6);
+VALID_VALUES_GRADUATION = c(INVALID_ANSWER_VALUE, 1, 2, 3, 4, 5, 6, 7, 8, 9);
 VALID_VALUES_INTERAKTIONSBEREITSCHAFT = seq(1, 7, by = 0.5);
 SERIOUS_PARTICIPATION_VALUE = 1;
 
 # Labels
-LABELS_GENDER = c('männlich', 'weiblich', 'divers', 'weiteres');
-LABELS_GRADUATION = c('Ohne Abschluss', 'Haupt-/Realschulabschluss', 'Fachhochschulreife/allgemeine Hochschulreife', 'Lehre/Berufsausbildung', 'Meister/Techniker', 'Bachelor', 'Master/Diplom', 'Promotion/Habilitation', 'Sonstiges');
+LABELS_GENDER = c(INVALID_ANSWER_TEXT, 'männlich', 'weiblich', 'divers', 'weiteres');
+LABELS_GRADUATION = c(INVALID_ANSWER_TEXT, 'Ohne Abschluss', 'Haupt-/Realschulabschluss', 'Fachhochschulreife/allgemeine Hochschulreife', 'Lehre/Berufsausbildung', 'Meister/Techniker', 'Bachelor', 'Master/Diplom', 'Promotion/Habilitation', 'Sonstiges');
 
 # Teilnehmer-Datensätze mit fehlenden/ungültigen Werten in der Allophilie-Skala
 INVALID_DATASETS_AFFECTION = mapply(list, c(504, 501, 402, 231), c('v_52', 'v_53', 'v_53', 'v_54'));
@@ -69,7 +71,7 @@ preprocessData = function(fileName) {
   isInteraktionsbereitschaftValid = c();
   isAllophiliaValid = c();
   
-  rawData = read.table(file = SOURCE_FILE_NAME, header = TRUE, sep=';');
+  rawData = read.table(file = fileName, header = TRUE, sep=';');
   lgr$info('Beginne Vorverarbeitung der Daten. Der ursprüngliche Datensatz hat %i Zeilen.', nrow(rawData));
   
   lgr$info('Lösche die Spalten der anderen Praktikumsgruppen.');
@@ -98,7 +100,7 @@ preprocessData = function(fileName) {
   if(countInvalidValuesInteraktionsbereitschaft == 0) {
     lgr$info('Alle Teilnehmer-Datensätze beinhalten ausschließlich gültige Werte für Interaktionsbereitschaft. Lösche nichts.');
   } else {
-    invalidRows = rawData[!isAllophiliaValid,];
+    invalidRows = rawData[!isInteraktionsbereitschaftValid,];
     lgr$warn('Es wurden %i Teilnehmer-Datensätze gefunden, die in der Interaktionsbereitschaft-Skala mindestens einen ungültigen Wert beinhalten. Es handelt sich um die Datensätze mit folgenden Nummern (lfdn): %s. Beheben Sie dieses Problem manuell.', countInvalidValuesInteraktionsbereitschaft, toString(invalidRows));
   }
   
@@ -117,10 +119,12 @@ preprocessData = function(fileName) {
   # Ausreißer löschen
   
   lgr$info('Rekodiere das Geschlecht.');
-  rawData[GENDER_ITEM] = factor(rawData[GENDER_ITEM], levels = VALID_VALUES_GENDER, labels = LABELS_GENDER);
+  rawData[,GENDER_ITEM] = factor(rawData[,GENDER_ITEM], levels = VALID_VALUES_GENDER, labels = LABELS_GENDER);
+  rawData[is.na(rawData[,GENDER_ITEM])] = INVALID_ANSWER_TEXT;
   
   lgr$info('Rekodiere den Bildungsabschluss.');
-  rawData[GRADUATION_ITEM] = factor(rawData[GRADUATION_ITEM], levels = VALID_VALUES_GRADUATION, labels = LABELS_GRADUATION);
+  rawData[,GRADUATION_ITEM] = factor(rawData[,GRADUATION_ITEM], levels = VALID_VALUES_GRADUATION, labels = LABELS_GRADUATION);
+  rawData[which(is.na(rawData[,GRADUATION_ITEM])),GRADUATION_ITEM] = INVALID_ANSWER_TEXT;
   
   lgr$info('Sortiere alle Spalten ab der sechsten.');
   rawData = rawData[,c(colnames(rawData[1:5]), str_sort(colnames(rawData)[6:ncol(rawData)], numeric = TRUE))];
