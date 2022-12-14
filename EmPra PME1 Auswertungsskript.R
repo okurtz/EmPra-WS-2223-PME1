@@ -45,7 +45,6 @@ unlink(LOG_PATH);
 try(lgr$remove_appender(pos = 'file appender'), silent = TRUE);
 lgr$add_appender(AppenderFile$new(LOG_PATH), name = 'file appender');
 lgr$info('Datenaufbereitungsskript EmPra WS 22/23 Gruppe 1 (Interaktionsbereitschaft, Allophilie) v0.0.2, 14. Dezember 2022');
-lgr$info('Wenn einer, der mit Mühe kaum gekrochen ist auf einen Baum, schon glaubt, dass er ein Vogel wär\', so irrt sich der. (Wilhelm Busch, Der fliegende Frosch)');
 
 replaceInvalidValues = function(rawData, invalidItemList, totalItemList) {
   for(i in 1:length(invalidItemList[1,])) {
@@ -55,7 +54,7 @@ replaceInvalidValues = function(rawData, invalidItemList, totalItemList) {
     otherItemsOfScale = setdiff(totalItemList, c(invalidCol));
     newValue = mean(unlist(rawData[rawData[ROW_ID] == invalidRow,otherItemsOfScale]));
     rawData[rawData[ROW_ID] == invalidRow,invalidCol] = newValue;
-    lgr$info('Datensatz %i: Ersetze den ungültigen Wert \"%i\" von Item %s durch den Mittelwert %.1f der Items %s = %i, %s = %i.', 
+    lgr$info('Datensatz %i: Ersetze den ungültigen Wert \"%i\" von Item %s durch den Mittelwert \"%.1f\" der Items %s = %i, %s = %i.', 
              invalidRow, invalidValue, invalidCol, newValue, 
              otherItemsOfScale[1], rawData[rawData[ROW_ID] == invalidRow,otherItemsOfScale[1]],
              otherItemsOfScale[2], rawData[rawData[ROW_ID] == invalidRow,otherItemsOfScale[2]]);
@@ -72,7 +71,7 @@ preprocessData = function(fileName) {
   isAllophiliaValid = c();
   
   rawData = read.table(file = fileName, header = TRUE, sep=';');
-  lgr$info('Beginne Vorverarbeitung der Daten. Der ursprüngliche Datensatz hat %i Zeilen.', nrow(rawData));
+  lgr$info('Beginne Vorverarbeitung der Daten. Der ursprüngliche Datensatz besteht aus %i Teilnehmer-Datensätzen.', nrow(rawData));
   
   lgr$info('Lösche die Spalten der anderen Praktikumsgruppen.');
   rawData[c('v_61', 'v_62', 'v_63', 'v_64', 'v_65', 'v_66', 'v_67', 'v_68')] = list(NULL);   # Toleranz, PME3
@@ -83,7 +82,7 @@ preprocessData = function(fileName) {
   if(nonSeriousParticipations == 0) {
     lgr$info('Alle Teilnehmer haben angegeben, ernsthaft teilgenommen zu haben. Lösche nichts.');
   } else {
-    lgr$info('Es wurden %i Teilnehmer-Datensätze gefunden, die als nicht-ernst gekennzeichnet sind oder keine Ernsthaftigkeitsangabe haben. Diese werden gelöscht.', nonSeriousParticipations);
+    lgr$info('Es wurden %i Teilnehmer-Datensätze gefunden, die als nicht-ernst gekennzeichnet sind oder keine Ernsthaftigkeitsangabe haben. Lösche die betroffenen Datensätze.', nonSeriousParticipations);
   }
   rawData = rawData[rawData[SERIOUS_PARTICIPATION_ITEM] == SERIOUS_PARTICIPATION_VALUE,];
   rowsDeleted =+ nonSeriousParticipations;
@@ -98,7 +97,7 @@ preprocessData = function(fileName) {
   });
   countInvalidValuesInteraktionsbereitschaft = sum(!isInteraktionsbereitschaftValid);
   if(countInvalidValuesInteraktionsbereitschaft == 0) {
-    lgr$info('Alle Teilnehmer-Datensätze beinhalten ausschließlich gültige Werte für Interaktionsbereitschaft. Lösche nichts.');
+    lgr$info('Alle Teilnehmer-Datensätze beinhalten (jetzt) ausschließlich gültige Werte für Interaktionsbereitschaft. Lösche nichts.');
   } else {
     invalidRows = rawData[!isInteraktionsbereitschaftValid,];
     lgr$warn('Es wurden %i Teilnehmer-Datensätze gefunden, die in der Interaktionsbereitschaft-Skala mindestens einen ungültigen Wert beinhalten. Es handelt sich um die Datensätze mit folgenden Nummern (lfdn): %s. Beheben Sie dieses Problem manuell.', countInvalidValuesInteraktionsbereitschaft, toString(invalidRows));
@@ -110,7 +109,7 @@ preprocessData = function(fileName) {
   });
   countInvalidValuesAllophilie = sum(!isAllophiliaValid);
   if(countInvalidValuesAllophilie == 0) {
-    lgr$info('Alle Teilnehmer-Datensätze beinhalten ausschließlich gültige Werte für Allophilie. Lösche nichts.');
+    lgr$info('Alle Teilnehmer-Datensätze beinhalten (jetzt) ausschließlich gültige Werte für Allophilie. Lösche nichts.');
   } else {
     invalidRows = rawData[!isAllophiliaValid,];
     lgr$warn('Es wurden %i Teilnehmer-Datensätze gefunden, die in der Allophilie-Skala mindestens einen ungültigen Wert beinhalten. Es handelt sich um die Datensätze mit folgender Nummer (lfdn): %s. Beheben Sie dieses Problem manuell und starten Sie das Skript erneut.', countInvalidValuesAllophilie, toString(invalidRows$lfdn));
@@ -120,21 +119,22 @@ preprocessData = function(fileName) {
   
   lgr$info('Rekodiere das Geschlecht.');
   rawData[,GENDER_ITEM] = factor(rawData[,GENDER_ITEM], levels = VALID_VALUES_GENDER, labels = LABELS_GENDER);
-  rawData[is.na(rawData[,GENDER_ITEM])] = INVALID_ANSWER_TEXT;
+  rawData[is.na(rawData[,GENDER_ITEM]),GENDER_ITEM] = INVALID_ANSWER_TEXT;
   
   lgr$info('Rekodiere den Bildungsabschluss.');
   rawData[,GRADUATION_ITEM] = factor(rawData[,GRADUATION_ITEM], levels = VALID_VALUES_GRADUATION, labels = LABELS_GRADUATION);
-  rawData[which(is.na(rawData[,GRADUATION_ITEM])),GRADUATION_ITEM] = INVALID_ANSWER_TEXT;
+  rawData[is.na(rawData[,GRADUATION_ITEM]),GRADUATION_ITEM] = INVALID_ANSWER_TEXT;
   
   lgr$info('Sortiere alle Spalten ab der sechsten.');
   rawData = rawData[,c(colnames(rawData[1:5]), str_sort(colnames(rawData)[6:ncol(rawData)], numeric = TRUE))];
   
   lgr$info('Vorverarbeitung der Rohdaten abgeschlossen. Insgesamt wurden die Daten von %i Teilnehmern gelöscht.', rowsDeleted);
+  lgr$info('Speichere die vorverarbeiteten Daten in der Datei %s.', PROCESSED_DATA_FILE_NAME);
   saveRDS(rawData, file = paste(getwd(), PROCESSED_DATA_FILE_NAME, sep='/'));
 }
 
 if(!file.exists(PROCESSED_DATA_FILE_NAME)) {
-  lgr$info('Konnte Datei %s nicht finden. Greife auf die Originaldaten zurück.', PROCESSED_DATA_FILE_NAME);
+  lgr$info('Konnte die Datei %s nicht finden. Greife auf die Originaldaten zurück.', PROCESSED_DATA_FILE_NAME);
   preprocessData(SOURCE_FILE_NAME);
 } else {
   lgr$info('Habe Datei %s gefunden und verwende sie nun.', PROCESSED_DATA_FILE_NAME);
