@@ -14,25 +14,27 @@ DECIMAL_PLACES_TO_SHOW = 2;
 
 # Item-Aliase
 AFFECTION_ITEMS = c('v_52', 'v_53', 'v_54');
+BEHAVIORAL_APPROACH_TENDENCIES_ITEMS = c('v_58', 'v_59', 'v_60');
 ENTHUSIASM_ITEMS = c('v_55', 'v_56', 'v_57');
+ALLOPHILIA_ITEMS = c(AFFECTION_ITEMS, ENTHUSIASM_ITEMS, BEHAVIORAL_APPROACH_TENDENCIES_ITEMS);
+DO_YOU_STUDY_ITEM = 'v_108';
 GENDER_ITEM = 'v_9';
 GRADUATION_ITEM = 'v_10510';
-INTERAKTIONSBEREITSCHAFT_ITEMS = c('v_46', 'v_47', 'v_48', 'v_49', 'v_50', 'v_51');
-BEHAVIORAL_APPROACH_TENDENCIES_ITEMS = c('v_58', 'v_59', 'v_60');
-ALLOPHILIA_ITEMS = c(AFFECTION_ITEMS, ENTHUSIASM_ITEMS, BEHAVIORAL_APPROACH_TENDENCIES_ITEMS);
-SERIOUS_PARTICIPATION_ITEM = 'v_11';
 IMPAIRED_VISION_ITEM = 'v_110';
+INTERAKTIONSBEREITSCHAFT_ITEMS = c('v_46', 'v_47', 'v_48', 'v_49', 'v_50', 'v_51');
 ROW_ID = 'lfdn';
+SERIOUS_PARTICIPATION_ITEM = 'v_11';
 
 # Wert-Aliase
 INVALID_ANSWER_VALUE = -99;
 INVALID_ANSWER_TEXT = 'Keine Angabe/ungültig';
+I_STUDY_PSYCHOLOGY_AT_FU_HAGEN_VALUE = 1;
+NO_IMPAIRED_VISION_VALUE = 2;
+SERIOUS_PARTICIPATION_VALUE = 1;
 VALID_VALUES_ALLOPHILIA = seq(1, 6, by = 0.5);  # Sequenz, weil bei fehlenden Werten Mittelwerte verwendet werden, die evtl. nicht-ganzzahlig sind
 VALID_VALUES_GENDER = c(INVALID_ANSWER_VALUE, 1, 2, 3, 6);
 VALID_VALUES_GRADUATION = c(INVALID_ANSWER_VALUE, 1, 2, 3, 4, 5, 6, 7, 8, 9);
 VALID_VALUES_INTERAKTIONSBEREITSCHAFT = seq(1, 7, by = 0.5);
-SERIOUS_PARTICIPATION_VALUE = 1;
-NO_IMPAIRED_VISION_VALUE = 2;
 
 # Labels
 LABELS_GENDER = c(INVALID_ANSWER_TEXT, 'männlich', 'weiblich', 'divers', 'weiteres');
@@ -67,7 +69,8 @@ replaceInvalidValues = function(rawData, invalidItemList, totalItemList) {
 preprocessData = function(fileName) {
   rowsDeleted = 0;
   nonSeriousParticipations = 0;
-  participantsWithImpairedVision = 0;
+  countParticipantsWithImpairedVision = 0;
+  countParticipantsWhoStudyPsychologyAtFUHagen = 0;
   countInvalidValuesInteraktionsbereitschaft = 0;
   countInvalidValuesAllophilie = 0;
   isInteraktionsbereitschaftValid = c();
@@ -101,13 +104,18 @@ preprocessData = function(fileName) {
   lgr$info('Der Datensatz enthält jetzt nur noch Daten von Teilnehmern, die ernsthaft geantwortet haben. Lösche die Spalte \"Serious Participation\" (Item %s), da sie nun überflüssig ist.', SERIOUS_PARTICIPATION_ITEM);
   rawData[SERIOUS_PARTICIPATION_ITEM] = NULL;
   
-  participantsWithImpairedVision = nrow(rawData[rawData[IMPAIRED_VISION_ITEM] != NO_IMPAIRED_VISION_VALUE,]);
+  countParticipantsWithImpairedVision = nrow(rawData[rawData[IMPAIRED_VISION_ITEM] != NO_IMPAIRED_VISION_VALUE,]);
   lgr$info('Habe folgende Werte für \"Einschränkungen Sehen\" (Item %s) gefunden: %s. %i Teilnehmer haben irgendetwas anderes als \"%i\" = \"Nein\" (keine Einschränkung beim Sehen) angegeben. Die Datensätze dieser Teilnehmer werden gelöscht.',
-           IMPAIRED_VISION_ITEM, toString((sort(unique(data[,IMPAIRED_VISION_ITEM])))), participantsWithImpairedVision, NO_IMPAIRED_VISION_VALUE);
+           IMPAIRED_VISION_ITEM, toString((sort(unique(data[,IMPAIRED_VISION_ITEM])))), countParticipantsWithImpairedVision, NO_IMPAIRED_VISION_VALUE);
   rawData = rawData[rawData[IMPAIRED_VISION_ITEM] == NO_IMPAIRED_VISION_VALUE,];
-  rowsDeleted = rowsDeleted + participantsWithImpairedVision;
+  rowsDeleted = rowsDeleted + countParticipantsWithImpairedVision;
   lgr$info('Der Datensatz enthält jetzt nur noch Daten von Teilnehmern ohne Seheinschränkung. Lösche die Spalte \"Einschränkungen Sehen\" (Item %s), da sie nun überflüssig ist.', IMPAIRED_VISION_ITEM);
   rawData[IMPAIRED_VISION_ITEM] = NULL;
+  
+  countParticipantsWhoStudyPsychologyAtFUHagen = nrow(rawData[rawData[DO_YOU_STUDY_ITEM] == I_STUDY_PSYCHOLOGY_AT_FU_HAGEN_VALUE,]);
+  lgr$info('%i Teilnehmer haben angegeben, Psychologie an der Fernuniversität in Hagen zu studieren. Lösche diese Datensätze.', countParticipantsWhoStudyPsychologyAtFUHagen);
+  rawData = rawData[rawData[DO_YOU_STUDY_ITEM] != I_STUDY_PSYCHOLOGY_AT_FU_HAGEN_VALUE,];
+  rowsDeleted = rowsDeleted + countParticipantsWhoStudyPsychologyAtFUHagen;
   
   
   ### Behandlung von ungültigen Werten ###
