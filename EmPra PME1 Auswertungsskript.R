@@ -32,6 +32,7 @@ VALID_VALUES_GENDER = c(INVALID_ANSWER_VALUE, 1, 2, 3, 6);
 VALID_VALUES_GRADUATION = c(INVALID_ANSWER_VALUE, 1, 2, 3, 4, 5, 6, 7, 8, 9);
 VALID_VALUES_INTERAKTIONSBEREITSCHAFT = seq(1, 7, by = 0.5);
 SERIOUS_PARTICIPATION_VALUE = 1;
+NO_IMPAIRED_VISION_VALUE = 2;
 
 # Labels
 LABELS_GENDER = c(INVALID_ANSWER_TEXT, 'männlich', 'weiblich', 'divers', 'weiteres');
@@ -45,7 +46,7 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path));
 unlink(LOG_PATH);
 try(lgr$remove_appender(pos = 'file appender'), silent = TRUE);
 lgr$add_appender(AppenderFile$new(LOG_PATH), name = 'file appender');
-lgr$info('Datenaufbereitungsskript EmPra WS 22/23 Gruppe 1 (Interaktionsbereitschaft, Allophilie) v0.0.2, 14. Dezember 2022');
+lgr$info('Datenaufbereitungsskript EmPra WS 22/23 Gruppe 1 (Interaktionsbereitschaft, Allophilie) v0.0.3, 16. Dezember 2022');
 
 replaceInvalidValues = function(rawData, invalidItemList, totalItemList) {
   for(i in 1:length(invalidItemList[1,])) {
@@ -66,6 +67,7 @@ replaceInvalidValues = function(rawData, invalidItemList, totalItemList) {
 preprocessData = function(fileName) {
   rowsDeleted = 0;
   nonSeriousParticipations = 0;
+  participantsWithImpairedVision = 0;
   countInvalidValuesInteraktionsbereitschaft = 0;
   countInvalidValuesAllophilie = 0;
   isInteraktionsbereitschaftValid = c();
@@ -74,22 +76,41 @@ preprocessData = function(fileName) {
   rawData = read.table(file = fileName, header = TRUE, sep=';');
   lgr$info('Beginne Vorverarbeitung der Daten. Der ursprüngliche Datensatz besteht aus %i Teilnehmer-Datensätzen.', nrow(rawData));
   
+  
+  ### Löschen von Spalten, die von Anfang an unnötig sind ###
+  
   lgr$info('Lösche die Spalten der anderen Praktikumsgruppen.');
   rawData[c('v_61', 'v_62', 'v_63', 'v_64', 'v_65', 'v_66', 'v_67', 'v_68')] = list(NULL);   # Toleranz, PME3
   rawData[c('v_38', 'v_39', 'v_40', 'v_41', 'v_42', 'v_43', 'v_44', 'v_45')] = list(NULL);   # Vorurteile, PME4
   rawData$v_24 = NULL;   # Feeling-Thermometer, PME5
   
   lgr$info('Lösche die Spalten mit den Items der Kontrollgruppe.');
-  rawData[c('v_140', 'v_141', 'v_142', 'v_143', 'v_144', 'v_145', 'v_146', 'v_147', 'v_148', 'v_149', 'v_150', 'v_151', )] = list(NULL);
+  rawData[c('v_140', 'v_141', 'v_142', 'v_143', 'v_144', 'v_145', 'v_146', 'v_147', 'v_148', 'v_149', 'v_150', 'v_151')] = list(NULL);
+  
+  
+  ### Löschen von Items ###
   
   nonSeriousParticipations = nrow(rawData[rawData[SERIOUS_PARTICIPATION_ITEM] != SERIOUS_PARTICIPATION_VALUE,]);
   if(nonSeriousParticipations == 0) {
     lgr$info('Alle Teilnehmer haben angegeben, ernsthaft teilgenommen zu haben. Lösche nichts.');
   } else {
-    lgr$info('Es wurden %i Teilnehmer-Datensätze gefunden, die als nicht-ernst gekennzeichnet sind oder keine Ernsthaftigkeitsangabe haben. Lösche die betroffenen Datensätze.', nonSeriousParticipations);
+    lgr$info('Habe %i Teilnehmer-Datensätze gefunden, die als nicht-ernst gekennzeichnet sind oder keine Ernsthaftigkeitsangabe haben. Lösche die betroffenen Datensätze.', nonSeriousParticipations);
   }
   rawData = rawData[rawData[SERIOUS_PARTICIPATION_ITEM] == SERIOUS_PARTICIPATION_VALUE,];
-  rowsDeleted =+ nonSeriousParticipations;
+  rowsDeleted = rowsDeleted + nonSeriousParticipations;
+  lgr$info('Der Datensatz enthält jetzt nur noch Daten von Teilnehmern, die ernsthaft geantwortet haben. Lösche die Spalte \"Serious Participation\" (Item %s), da sie nun überflüssig ist.', SERIOUS_PARTICIPATION_ITEM);
+  rawData[SERIOUS_PARTICIPATION_ITEM] = NULL;
+  
+  participantsWithImpairedVision = nrow(rawData[rawData[IMPAIRED_VISION_ITEM] != NO_IMPAIRED_VISION_VALUE,]);
+  lgr$info('Habe folgende Werte für \"Einschränkungen Sehen\" (Item %s) gefunden: %s. %i Teilnehmer haben irgendetwas anderes als \"%i\" = \"Nein\" (keine Einschränkung beim Sehen) angegeben. Die Datensätze dieser Teilnehmer werden gelöscht.',
+           IMPAIRED_VISION_ITEM, toString((sort(unique(data[,IMPAIRED_VISION_ITEM])))), participantsWithImpairedVision, NO_IMPAIRED_VISION_VALUE);
+  rawData = rawData[rawData[IMPAIRED_VISION_ITEM] == NO_IMPAIRED_VISION_VALUE,];
+  rowsDeleted = rowsDeleted + participantsWithImpairedVision;
+  lgr$info('Der Datensatz enthält jetzt nur noch Daten von Teilnehmern ohne Seheinschränkung. Lösche die Spalte \"Einschränkungen Sehen\" (Item %s), da sie nun überflüssig ist.', IMPAIRED_VISION_ITEM);
+  rawData[IMPAIRED_VISION_ITEM] = NULL;
+  
+  
+  ### Behandlung von ungültigen Werten ###
   
   # Bekannte ungültige Werte ersetzen
   rawData = replaceInvalidValues(rawData, INVALID_DATASETS_AFFECTION, AFFECTION_ITEMS);
@@ -121,6 +142,9 @@ preprocessData = function(fileName) {
   
   # Ausreißer löschen
   
+  
+  ### Rekodieren ###
+  
   lgr$info('Rekodiere das Geschlecht.');
   rawData[,GENDER_ITEM] = factor(rawData[,GENDER_ITEM], levels = VALID_VALUES_GENDER, labels = LABELS_GENDER);
   rawData[is.na(rawData[,GENDER_ITEM]),GENDER_ITEM] = INVALID_ANSWER_TEXT;
@@ -131,6 +155,8 @@ preprocessData = function(fileName) {
   
   lgr$info('Sortiere alle Spalten ab der sechsten.');
   rawData = rawData[,c(colnames(rawData[1:5]), str_sort(colnames(rawData)[6:ncol(rawData)], numeric = TRUE))];
+  
+  ### Abschluss der Vorverarbeitung ###
   
   lgr$info('Vorverarbeitung der Rohdaten abgeschlossen. Insgesamt wurden die Daten von %i Teilnehmern gelöscht.', rowsDeleted);
   lgr$info('Speichere die vorverarbeiteten Daten in der Datei %s.', PROCESSED_DATA_FILE_NAME);
