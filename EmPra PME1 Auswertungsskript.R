@@ -15,7 +15,9 @@ DECIMAL_PLACES_TO_SHOW = 2;
 # Item-Aliase
 AFFECTION_ITEMS = c('v_52', 'v_53', 'v_54');
 BEHAVIORAL_APPROACH_TENDENCIES_ITEMS = c('v_58', 'v_59', 'v_60');
+DATA_USAGE_AGREEMENT_ITEM = 'Einverst_Bedingung';
 ENTHUSIASM_ITEMS = c('v_55', 'v_56', 'v_57');
+EXPERIMENTAL_CONDITION_ITEM = 'c_0001';
 ALLOPHILIA_ITEMS = c(AFFECTION_ITEMS, ENTHUSIASM_ITEMS, BEHAVIORAL_APPROACH_TENDENCIES_ITEMS);
 DO_YOU_STUDY_ITEM = 'v_108';
 GENDER_ITEM = 'v_9';
@@ -26,17 +28,20 @@ ROW_ID = 'lfdn';
 SERIOUS_PARTICIPATION_ITEM = 'v_11';
 
 # Wert-Aliase
+I_AGREE_TO_MY_DATA_BEING_USED_VALUE = 1;
 INVALID_ANSWER_VALUE = -99;
 INVALID_ANSWER_TEXT = 'Keine Angabe/ungültig';
 I_STUDY_PSYCHOLOGY_AT_FU_HAGEN_VALUE = 1;
 NO_IMPAIRED_VISION_VALUE = 2;
 SERIOUS_PARTICIPATION_VALUE = 1;
 VALID_VALUES_ALLOPHILIA = seq(1, 6, by = 0.5);  # Sequenz, weil bei fehlenden Werten Mittelwerte verwendet werden, die evtl. nicht-ganzzahlig sind
+VALID_VALUES_EXPERIMENTAL_CONDITION = c(INVALID_ANSWER_VALUE, 1, 2);
 VALID_VALUES_GENDER = c(INVALID_ANSWER_VALUE, 1, 2, 3, 6);
 VALID_VALUES_GRADUATION = c(INVALID_ANSWER_VALUE, 1, 2, 3, 4, 5, 6, 7, 8, 9);
 VALID_VALUES_INTERAKTIONSBEREITSCHAFT = seq(1, 7, by = 0.5);
 
 # Labels
+LABELS_EXPERIMENTAL_CONDITION = c(INVALID_ANSWER_TEXT, 'Erst positiv, dann negativ', 'Erst negativ, dann positiv');
 LABELS_GENDER = c(INVALID_ANSWER_TEXT, 'männlich', 'weiblich', 'divers', 'weiteres');
 LABELS_GRADUATION = c(INVALID_ANSWER_TEXT, 'Ohne Abschluss', 'Haupt-/Realschulabschluss', 'Fachhochschulreife/allgemeine Hochschulreife', 'Lehre/Berufsausbildung', 'Meister/Techniker', 'Bachelor', 'Master/Diplom', 'Promotion/Habilitation', 'Sonstiges');
 
@@ -73,6 +78,7 @@ preprocessData = function(fileName) {
   countParticipantsWhoStudyPsychologyAtFUHagen = 0;
   countInvalidValuesInteraktionsbereitschaft = 0;
   countInvalidValuesAllophilie = 0;
+  countMissingDataUsageAgreement = 0;
   isInteraktionsbereitschaftValid = c();
   isAllophiliaValid = c();
   
@@ -93,6 +99,8 @@ preprocessData = function(fileName) {
   
   ### Löschen von Items ###
   
+  lgr$warn('Achtung: Es kann sein, dass ein Teilnehmer mehr als nur ein Ausschluss-Kriterium erfüllt. Die Anzahl der Teilnehmer, die aus einem bestimmten Grund ausgeschlossen werden, kann folglich von der Reihenfolge abhängen, in der die Datensätze gelöscht worden sind. Die Zahl der Datensätze, die in jedem Arbeitsschritt gelöscht werden, bezieht sich daher auf die zu diesem Punkt verbliebenen Datensätze, nicht auf die ursprünglich vorhandenen.');
+  
   nonSeriousParticipations = nrow(rawData[rawData[SERIOUS_PARTICIPATION_ITEM] != SERIOUS_PARTICIPATION_VALUE,]);
   if(nonSeriousParticipations == 0) {
     lgr$info('Alle Teilnehmer haben angegeben, ernsthaft teilgenommen zu haben. Lösche nichts.');
@@ -103,6 +111,8 @@ preprocessData = function(fileName) {
   rowsDeleted = rowsDeleted + nonSeriousParticipations;
   lgr$info('Der Datensatz enthält jetzt nur noch Daten von Teilnehmern, die ernsthaft geantwortet haben. Lösche die Spalte \"Serious Participation\" (Item %s), da sie nun überflüssig ist.', SERIOUS_PARTICIPATION_ITEM);
   rawData[SERIOUS_PARTICIPATION_ITEM] = NULL;
+  
+  countMissingDataUsageAgreement = rawData[rart]
   
   countParticipantsWithImpairedVision = nrow(rawData[rawData[IMPAIRED_VISION_ITEM] != NO_IMPAIRED_VISION_VALUE,]);
   lgr$info('Habe folgende Werte für \"Einschränkungen Sehen\" (Item %s) gefunden: %s. %i Teilnehmer haben irgendetwas anderes als \"%i\" = \"Nein\" (keine Einschränkung beim Sehen) angegeben. Die Datensätze dieser Teilnehmer werden gelöscht.',
@@ -150,8 +160,11 @@ preprocessData = function(fileName) {
   
   # Ausreißer löschen
   
-  
   ### Rekodieren ###
+  
+  lgr$info('Rekodiere die Versuchsbedingung.');
+  rawData[,EXPERIMENTAL_CONDITION_ITEM] = factor(rawData[,EXPERIMENTAL_CONDITION_ITEM], levels = VALID_VALUES_EXPERIMENTAL_CONDITION, labels = LABELS_EXPERIMENTAL_CONDITION);
+  rawData[is.na(rawData[,EXPERIMENTAL_CONDITION_ITEM]),EXPERIMENTAL_CONDITION_ITEM] = INVALID_ANSWER_TEXT;
   
   lgr$info('Rekodiere das Geschlecht.');
   rawData[,GENDER_ITEM] = factor(rawData[,GENDER_ITEM], levels = VALID_VALUES_GENDER, labels = LABELS_GENDER);
@@ -187,7 +200,7 @@ dataToAnalyze = readRDS(PROCESSED_DATA_FILE_NAME);
 lgr$info('Der vorverarbeitete Datensatz enthält Daten von %i Teilnehmern.', nrow(dataToAnalyze));
 
 # Mittleres Alter der Teilnehmer
-lgr$info('Das mittlere Alter der Teilnehmer beträgt %.2f Jahre.', mean(dataToAnalyze$v_12));
+lgr$info('Das mittlere Alter der Teilnehmer beträgt %.2f Jahre, Standardabweichung = %.2f.', mean(dataToAnalyze$v_12), sd(dataToAnalyze$v_12));
 
 # Anteile der Geschlechter
 genderRatios = prop.table(table(dataToAnalyze[GENDER_ITEM])) * 100;
