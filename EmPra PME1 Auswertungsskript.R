@@ -11,6 +11,7 @@ LOG_PATH = './Log Datenverarbeitung.log';     # Relativer oder absoluter Pfad, e
 # Technische Einstellungen
 PROCESSED_DATA_FILE_NAME = paste(unlist(strsplit(SOURCE_FILE_NAME, '\\.'))[1], '.RDS', sep='');
 DECIMAL_PLACES_TO_SHOW = 2;
+VERSION = 'v0.0.3';
 
 # Item-Aliase
 AFFECTION_ITEMS = c('v_52', 'v_53', 'v_54');
@@ -221,9 +222,12 @@ setwd(dirname(rstudioapi::getActiveDocumentContext()$path));
 unlink(LOG_PATH);
 lgr$config(list(
   threshold = 'info',
-  appenders = AppenderFile$new(LOG_PATH)
+  appenders = AppenderFile$new(
+    LOG_PATH,
+    layout = LayoutFormat$new('%m')
+    )
 ));
-newLogSection('Datenaufbereitungsskript EmPra WS 22/23 Gruppe 1 v0.0.3, 17.12.22', FALSE);
+newLogSection(sprintf('Datenaufbereitungsskript EmPra WS 22/23 Gruppe 1, %s, %s', VERSION, format(Sys.Date(), format = '%d. %B %Y')), FALSE);
 
 if(!file.exists(PROCESSED_DATA_FILE_NAME)) {
   lgr$info('Konnte die Datei %s nicht finden. Greife auf die Originaldaten zurück.', PROCESSED_DATA_FILE_NAME);
