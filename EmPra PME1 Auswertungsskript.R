@@ -21,6 +21,7 @@ INTERAKTIONSBEREITSCHAFT_ITEMS = c('v_46', 'v_47', 'v_48', 'v_49', 'v_50', 'v_51
 BEHAVIORAL_APPROACH_TENDENCIES_ITEMS = c('v_58', 'v_59', 'v_60');
 ALLOPHILIA_ITEMS = c(AFFECTION_ITEMS, ENTHUSIASM_ITEMS, BEHAVIORAL_APPROACH_TENDENCIES_ITEMS);
 SERIOUS_PARTICIPATION_ITEM = 'v_11';
+IMPAIRED_VISION_ITEM = 'v_110';
 ROW_ID = 'lfdn';
 
 # Wert-Aliase
@@ -77,6 +78,9 @@ preprocessData = function(fileName) {
   rawData[c('v_61', 'v_62', 'v_63', 'v_64', 'v_65', 'v_66', 'v_67', 'v_68')] = list(NULL);   # Toleranz, PME3
   rawData[c('v_38', 'v_39', 'v_40', 'v_41', 'v_42', 'v_43', 'v_44', 'v_45')] = list(NULL);   # Vorurteile, PME4
   rawData$v_24 = NULL;   # Feeling-Thermometer, PME5
+  
+  lgr$info('Lösche die Spalten mit den Items der Kontrollgruppe.');
+  rawData[c('v_140', 'v_141', 'v_142', 'v_143', 'v_144', 'v_145', 'v_146', 'v_147', 'v_148', 'v_149', 'v_150', 'v_151', )] = list(NULL);
   
   nonSeriousParticipations = nrow(rawData[rawData[SERIOUS_PARTICIPATION_ITEM] != SERIOUS_PARTICIPATION_VALUE,]);
   if(nonSeriousParticipations == 0) {
