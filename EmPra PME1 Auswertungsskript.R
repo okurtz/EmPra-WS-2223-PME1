@@ -16,20 +16,22 @@ VERSION = 'v0.0.3';
 # Item-Aliase
 AFFECTION_ITEMS = c('v_52', 'v_53', 'v_54');
 BEHAVIORAL_APPROACH_TENDENCIES_ITEMS = c('v_58', 'v_59', 'v_60');
-DATA_USAGE_AGREEMENT_ITEM = 'Einverst_Bedingungen';
-ENTHUSIASM_ITEMS = c('v_55', 'v_56', 'v_57');
-EXPERIMENTAL_CONDITION_ITEM = 'c_0001';
-ALLOPHILIA_ITEMS = c(AFFECTION_ITEMS, ENTHUSIASM_ITEMS, BEHAVIORAL_APPROACH_TENDENCIES_ITEMS);
+DATA_USAGE_AGREEMENT_ITEM = 'v_8';
 DO_YOU_STUDY_ITEM = 'v_108';
+ENTHUSIASM_ITEMS = c('v_55', 'v_56', 'v_57');
+ALLOPHILIA_ITEMS = c(AFFECTION_ITEMS, ENTHUSIASM_ITEMS, BEHAVIORAL_APPROACH_TENDENCIES_ITEMS);
+EXPERIMENTAL_CONDITION_ITEM = 'c_0001';
 GENDER_ITEM = 'v_9';
 GRADUATION_ITEM = 'v_10510';
 IMPAIRED_VISION_ITEM = 'v_110';
 INTERAKTIONSBEREITSCHAFT_ITEMS = c('v_46', 'v_47', 'v_48', 'v_49', 'v_50', 'v_51');
 ROW_ID = 'lfdn';
+STUDY_PARTICIPATION_AGREEMENT_ITEM = 'Einverst_Bedingungen';
 SERIOUS_PARTICIPATION_ITEM = 'v_11';
 
 # Wert-Aliase
 I_AGREE_TO_MY_DATA_BEING_USED_VALUE = 1;
+I_AGREE_TO_PARTICIPATE_IN_THE_STUDY_VALUE = 1;
 INVALID_ANSWER_VALUE = -99;
 INVALID_ANSWER_TEXT = 'Keine Angabe/ungültig';
 I_STUDY_PSYCHOLOGY_AT_FU_HAGEN_VALUE = 1;
@@ -116,6 +118,7 @@ newLogSection = function(title, newLine = TRUE) {
 deleteRows = function(rawData) {
   rowsDeleted = 0;
   nonSeriousParticipations = 0;
+  countMissingParticipationAgreement = 0;
   countMissingDataUsageAgreement = 0;
   countParticipantsWithImpairedVision = 0;
   countParticipantsWhoStudyPsychologyAtFUHagen = 0;
@@ -130,6 +133,15 @@ deleteRows = function(rawData) {
   rawData = rawData[rawData[SERIOUS_PARTICIPATION_ITEM] == SERIOUS_PARTICIPATION_VALUE,];
   rowsDeleted = rowsDeleted + nonSeriousParticipations;
   
+  countMissingParticipationAgreement = nrow(rawData[rawData[STUDY_PARTICIPATION_AGREEMENT_ITEM] != I_AGREE_TO_PARTICIPATE_IN_THE_STUDY_VALUE,]);
+  if(countMissingParticipationAgreement == 0) {
+    lgr$info('Alle Teilnehmer haben angegeben, die Teilnahmeerklärung gelesen und verstanden zu haben (ha.) und haben sich zur Teilnahme bereiterklärt. Lösche nichts.');
+  } else {
+    lgr$info('%i Teilnehmer haben die Teilnahmeerklärung nicht mit \"Ja\" beantwortet. Lösche die betroffenen Datensätze.', countMissingParticipationAgreement);
+    rawData = rawData[rawData[STUDY_PARTICIPATION_AGREEMENT_ITEM] == I_AGREE_TO_PARTICIPATE_IN_THE_STUDY_VALUE,];
+    rowsDeleted = rowsDeleted + countMissingParticipationAgreement;
+  }
+  
   countMissingDataUsageAgreement = nrow(rawData[rawData[DATA_USAGE_AGREEMENT_ITEM] != I_AGREE_TO_MY_DATA_BEING_USED_VALUE,]);
   if(countMissingDataUsageAgreement == 0) {
     lgr$info('Alle Teilnehmer haben ihre Einverständnis dazu abgegeben, dass ihre Daten verwendet werden. Lösche nichts.');
@@ -140,21 +152,24 @@ deleteRows = function(rawData) {
   }
   
   countParticipantsWithImpairedVision = nrow(rawData[rawData[IMPAIRED_VISION_ITEM] != NO_IMPAIRED_VISION_VALUE,]);
-  lgr$info('Habe folgende Werte für \"Einschränkungen Sehen\" (Item %s) gefunden: %s. %i Teilnehmer haben irgendetwas anderes als \"%i\" = \"Nein\" (keine Einschränkung beim Sehen) angegeben. Die Datensätze dieser Teilnehmer werden gelöscht.',
-           IMPAIRED_VISION_ITEM, toString((sort(unique(rawData[,IMPAIRED_VISION_ITEM])))), countParticipantsWithImpairedVision, NO_IMPAIRED_VISION_VALUE);
-  rawData = rawData[rawData[IMPAIRED_VISION_ITEM] == NO_IMPAIRED_VISION_VALUE,];
-  rowsDeleted = rowsDeleted + countParticipantsWithImpairedVision;
-  
+  if(countParticipantsWithImpairedVision == 0) {
+    lgr$info('Alle Teilnehmer haben angegeben, keine Einschränkungen beim Sehen zu haben. Lösche nichts.');
+  } else {
+    lgr$info('Habe folgende Werte für \"Einschränkungen Sehen\" (Item %s) gefunden: %s. %i Teilnehmer haben irgendetwas anderes als \"%i\" = \"Nein\" (keine Einschränkung beim Sehen) angegeben. Die Datensätze dieser Teilnehmer werden gelöscht.',
+             IMPAIRED_VISION_ITEM, toString((sort(unique(rawData[,IMPAIRED_VISION_ITEM])))), countParticipantsWithImpairedVision, NO_IMPAIRED_VISION_VALUE);
+    rawData = rawData[rawData[IMPAIRED_VISION_ITEM] == NO_IMPAIRED_VISION_VALUE,];
+    rowsDeleted = rowsDeleted + countParticipantsWithImpairedVision;
+  }
   countParticipantsWhoStudyPsychologyAtFUHagen = nrow(rawData[rawData[DO_YOU_STUDY_ITEM] == I_STUDY_PSYCHOLOGY_AT_FU_HAGEN_VALUE,]);
   if(countParticipantsWhoStudyPsychologyAtFUHagen == 0) {
-    lgr$info('Kein Teilnehmer hat angegeben, an der Fernuniversität in Hagen Psychologie zu studieren.');
+    lgr$info('Kein Teilnehmer hat angegeben, an der Fernuniversität in Hagen Psychologie zu studieren. Lösche nichts.');
   } else {
     lgr$info('%i Teilnehmer haben angegeben, Psychologie an der Fernuniversität in Hagen zu studieren. Lösche diese Datensätze.', countParticipantsWhoStudyPsychologyAtFUHagen);
     rawData = rawData[rawData[DO_YOU_STUDY_ITEM] != I_STUDY_PSYCHOLOGY_AT_FU_HAGEN_VALUE,];
     rowsDeleted = rowsDeleted + countParticipantsWhoStudyPsychologyAtFUHagen;
   }
   lgr$info('Insgesamt wurden die Daten von %i Teilnehmern gelöscht.', rowsDeleted);
-
+  
   return(rawData);
 }
 
@@ -168,7 +183,9 @@ deleteColumns = function(rawData) {
   lgr$info('Lösche die Spalten mit den Items der Kontrollgruppe.');
   rawData[c('v_140', 'v_141', 'v_142', 'v_143', 'v_144', 'v_145', 'v_146', 'v_147', 'v_148', 'v_149', 'v_150', 'v_151')] = list(NULL);
   
-  lgr$info('Der Datensatz enthält jetzt nur noch Daten von Teilnehmern, die mit der Verarbeitung ihrer Daten einverstanden sind. Lösche die Spalte mit der Einverständniserklärung (Item %s), da sie nun überflüssig ist.', DATA_USAGE_AGREEMENT_ITEM);
+  lgr$info('Der Datensatz enthält jetzt nur noch Daten von Teilnehmer, die der Teilnahme an der Studie zugestimmt haben. Lösche die Spalte mit der Teilnahmeerklärung (Item %s), da sie nun überflüssig ist.', STUDY_PARTICIPATION_AGREEMENT_ITEM)
+  
+  lgr$info('Der Datensatz enthält jetzt nur noch Daten von Teilnehmern, die mit der Verarbeitung ihrer Daten einverstanden sind. Lösche die Spalte mit der Einverständniserklärung zur Datenverarbeitung (Item %s), da sie nun überflüssig ist.', DATA_USAGE_AGREEMENT_ITEM);
   rawData[DATA_USAGE_AGREEMENT_ITEM] = NULL;
   
   lgr$info('Der Datensatz enthält jetzt nur noch Daten von Teilnehmern, die ernsthaft geantwortet haben. Lösche die Spalte \"Serious Participation\" (Item %s), da sie nun überflüssig ist.', SERIOUS_PARTICIPATION_ITEM);
@@ -176,6 +193,11 @@ deleteColumns = function(rawData) {
   
   lgr$info('Der Datensatz enthält jetzt nur noch Daten von Teilnehmern ohne Seheinschränkung. Lösche die Spalte \"Einschränkungen Sehen\" (Item %s), da sie nun überflüssig ist.', IMPAIRED_VISION_ITEM);
   rawData[IMPAIRED_VISION_ITEM] = NULL;
+  
+  if(unique(rawData["v_3"]) == 1) {
+    lgr$info('Item v_3 enthält für alle Zeilen nur einen einzigen Wert (%s). Zudem scheint dieses Item nicht bedeutungstragend zu sein. Lösche daher die Spalte.', unlist(unique(rawData["v_3"])));
+    rawData["v_3"] = NULL;
+  }
   
   return(rawData);
 }
@@ -225,7 +247,7 @@ lgr$config(list(
   appenders = AppenderFile$new(
     LOG_PATH,
     layout = LayoutFormat$new('%m')
-    )
+  )
 ));
 newLogSection(sprintf('Datenaufbereitungsskript EmPra WS 22/23 Gruppe 1, %s, %s', VERSION, format(Sys.Date(), format = '%d. %B %Y')), FALSE);
 
