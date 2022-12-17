@@ -26,6 +26,7 @@ GRADUATION_ITEM = 'v_10510';
 IMPAIRED_VISION_ITEM = 'v_110';
 INTERAKTIONSBEREITSCHAFT_ITEMS = c('v_46', 'v_47', 'v_48', 'v_49', 'v_50', 'v_51');
 ROW_ID = 'lfdn';
+SCREEN_ITEM = 'v_107';
 STUDY_PARTICIPATION_AGREEMENT_ITEM = 'Einverst_Bedingungen';
 SERIOUS_PARTICIPATION_ITEM = 'v_11';
 
@@ -42,11 +43,13 @@ VALID_VALUES_EXPERIMENTAL_CONDITION = c(INVALID_ANSWER_VALUE, 1, 2);
 VALID_VALUES_GENDER = c(INVALID_ANSWER_VALUE, 1, 2, 3, 6);
 VALID_VALUES_GRADUATION = c(INVALID_ANSWER_VALUE, 1, 2, 3, 4, 5, 6, 7, 8, 9);
 VALID_VALUES_INTERAKTIONSBEREITSCHAFT = seq(1, 7, by = 0.5);
+VALID_VALUES_SCREENS = c(INVALID_ANSWER_VALUE, 1, 2, 3, 4, 5);
 
 # Labels
 LABELS_EXPERIMENTAL_CONDITION = c(INVALID_ANSWER_TEXT, 'Erst positiv, dann negativ', 'Erst negativ, dann positiv');
 LABELS_GENDER = c(INVALID_ANSWER_TEXT, 'männlich', 'weiblich', 'divers', 'weiteres');
 LABELS_GRADUATION = c(INVALID_ANSWER_TEXT, 'Ohne Abschluss', 'Haupt-/Realschulabschluss', 'Fachhochschulreife/allgemeine Hochschulreife', 'Lehre/Berufsausbildung', 'Meister/Techniker', 'Bachelor', 'Master/Diplom', 'Promotion/Habilitation', 'Sonstiges');
+LABELS_SCREENS = c(INVALID_ANSWER_TEXT, 'Smartphone', 'Tablet', 'Laptop', 'Externer Bildschirm', 'Sonstiges');
 
 # Teilnehmer-Datensätze mit fehlenden/ungültigen Werten in der Allophilie-Skala
 INVALID_DATASETS_AFFECTION = mapply(list, c(504, 501, 402, 231), c('v_52', 'v_53', 'v_53', 'v_54'));
@@ -216,6 +219,10 @@ recodeDataset = function(rawData) {
   lgr$info('Rekodiere den Bildungsabschluss.');
   rawData[,GRADUATION_ITEM] = factor(rawData[,GRADUATION_ITEM], levels = VALID_VALUES_GRADUATION, labels = LABELS_GRADUATION);
   rawData[is.na(rawData[,GRADUATION_ITEM]),GRADUATION_ITEM] = INVALID_ANSWER_TEXT;
+  
+  lgr$info('Rekodiere den verwendeten Bildschirm.');
+  rawData[,SCREEN_ITEM] = factor(rawData[,SCREEN_ITEM], levels = VALID_VALUES_SCREENS, labels = LABELS_SCREENS);
+  rawData[is.na(rawData[,SCREEN_ITEM]),SCREEN_ITEM] = INVALID_ANSWER_TEXT;
   
   return(rawData);
 }
