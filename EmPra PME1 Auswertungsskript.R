@@ -203,7 +203,7 @@ deleteColumns = function(rawData) {
   return(rawData);
 }
 
-recode_dataset = function(rawData) {
+recodeDataset = function(rawData) {
   newLogSection('Rekodieren')
   lgr$info('Rekodiere die Versuchsbedingung.');
   rawData[,EXPERIMENTAL_CONDITION_ITEM] = factor(rawData[,EXPERIMENTAL_CONDITION_ITEM], levels = VALID_VALUES_EXPERIMENTAL_CONDITION, labels = LABELS_EXPERIMENTAL_CONDITION);
@@ -231,7 +231,7 @@ preprocessData = function(fileName) {
   # Ausreißer löschen
   
   rawData = deleteColumns(rawData);
-  rawData = recode_dataset(rawData);
+  rawData = recodeDataset(rawData);
   
   newLogSection('Technischer Abschluss der Vorverarbeitung');
   lgr$info('Sortiere alle Spalten ab der sechsten.');
@@ -298,3 +298,5 @@ means = colMeans(dataToAnalyze[AFFECTION_ITEMS]);
 lgr$info('Allophilie - Positive Affekte: Mittelwert = %.4f, Standardabweichung = %.4f', mean(means), sd(means));
 means = colMeans(dataToAnalyze[ENTHUSIASM_ITEMS]);
 lgr$info('Allophilie - Enthusiasmus: Mittelwert = %.4f, Standardabweichung = %.4f', mean(means), sd(means));
+
+print('Skript wurde erfolgreich ausgeführt.');
