@@ -15,11 +15,10 @@ VERSION = 'v0.0.3';
 
 # Item-Aliase
 AFFECTION_ITEMS = c('v_52', 'v_53', 'v_54');
-BEHAVIORAL_APPROACH_TENDENCIES_ITEMS = c('v_58', 'v_59', 'v_60');
 DATA_USAGE_AGREEMENT_ITEM = 'v_8';
 DO_YOU_STUDY_ITEM = 'v_108';
 ENTHUSIASM_ITEMS = c('v_55', 'v_56', 'v_57');
-ALLOPHILIA_ITEMS = c(AFFECTION_ITEMS, ENTHUSIASM_ITEMS, BEHAVIORAL_APPROACH_TENDENCIES_ITEMS);
+ALLOPHILIA_ITEMS = c(AFFECTION_ITEMS, ENTHUSIASM_ITEMS);
 EXPERIMENTAL_CONDITION_ITEM = 'c_0001';
 GENDER_ITEM = 'v_9';
 GRADUATION_ITEM = 'v_10510';
@@ -176,6 +175,7 @@ deleteRows = function(rawData) {
 deleteColumns = function(rawData) {
   newLogSection('Spalten löschen');
   lgr$info('Lösche die Spalten der anderen Praktikumsgruppen.');
+  rawData[c('v_58', 'v_59', 'v_60')] = list(NULL);  # Engagement, PME2
   rawData[c('v_61', 'v_62', 'v_63', 'v_64', 'v_65', 'v_66', 'v_67', 'v_68')] = list(NULL);   # Toleranz, PME3
   rawData[c('v_38', 'v_39', 'v_40', 'v_41', 'v_42', 'v_43', 'v_44', 'v_45')] = list(NULL);   # Vorurteile, PME4
   rawData$v_24 = NULL;   # Feeling-Thermometer, PME5
@@ -297,5 +297,3 @@ means = colMeans(dataToAnalyze[AFFECTION_ITEMS]);
 lgr$info('Allophilie - Positive Affekte: Mittelwert = %.4f, Standardabweichung = %.4f', mean(means), sd(means));
 means = colMeans(dataToAnalyze[ENTHUSIASM_ITEMS]);
 lgr$info('Allophilie - Enthusiasmus: Mittelwert = %.4f, Standardabweichung = %.4f', mean(means), sd(means));
-means = colMeans(dataToAnalyze[BEHAVIORAL_APPROACH_TENDENCIES_ITEMS]);
-lgr$info('Allophilie - Verhaltenstendenzen: Mittelwert = %.4f, Standardabweichung = %.4f', mean(means), sd(means));
