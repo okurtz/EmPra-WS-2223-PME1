@@ -47,7 +47,7 @@ VALID_VALUES_SCREENS = c(INVALID_ANSWER_VALUE, 1, 2, 3, 4, 5);
 
 # Labels
 LABELS_EXPERIMENTAL_CONDITION = c(INVALID_ANSWER_TEXT, 'Erst positiv, dann negativ', 'Erst negativ, dann positiv');
-LABELS_GENDER = c(INVALID_ANSWER_TEXT, 'männlich', 'weiblich', 'divers', 'weiteres');
+LABELS_GENDER = c(INVALID_ANSWER_TEXT, 'weiblich', 'männlich', 'divers', 'weiteres');
 LABELS_GRADUATION = c(INVALID_ANSWER_TEXT, 'Ohne Abschluss', 'Haupt-/Realschulabschluss', 'Fachhochschulreife/allgemeine Hochschulreife', 'Lehre/Berufsausbildung', 'Meister/Techniker', 'Bachelor', 'Master/Diplom', 'Promotion/Habilitation', 'Sonstiges');
 LABELS_SCREENS = c(INVALID_ANSWER_TEXT, 'Smartphone', 'Tablet', 'Laptop', 'Externer Bildschirm', 'Sonstiges');
 
