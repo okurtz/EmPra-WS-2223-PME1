@@ -10,8 +10,8 @@ LOG_PATH = './Log Datenverarbeitung.log';     # Relativer oder absoluter Pfad, e
 # Technische Einstellungen
 PROCESSED_DATA_FILE_NAME = paste(unlist(strsplit(SOURCE_FILE_NAME, '\\.'))[1], '.RDS', sep='');
 DECIMAL_PLACES_TO_SHOW = 2;
-VERSION_NUMBER = 'v0.0.3';
-VERSION_DATE = '17. Dezember 2022';
+VERSION_NUMBER = 'v0.0.4';
+VERSION_DATE = '19. Dezember 2022';
 
 # Item-Aliase
 AFFECTION_ITEMS = c('v_52', 'v_53', 'v_54');
@@ -36,7 +36,7 @@ INVALID_ANSWER_VALUES = c(-99, 0);
 I_STUDY_PSYCHOLOGY_AT_FU_HAGEN_VALUE = 1;
 NO_IMPAIRED_VISION_VALUE = 2;
 SERIOUS_PARTICIPATION_VALUE = 1;
-VALID_VALUES_ALLOPHILIA = seq(1, 6, by = 0.5);  # Sequenz, weil bei fehlenden Werten Mittelwerte verwendet werden, die evtl. nicht-ganzzahlig sind
+VALID_VALUES_ALLOPHILIA = seq(1, 6, by = 0.5);  # Sequenz, weil bei fehlenden Werten Me verwendet werden, die evtl. nicht-ganzzahlig sind
 VALID_VALUES_EXPERIMENTAL_CONDITION = c(1, 2);
 VALID_VALUES_GENDER = c(1, 2, 3, 6);
 VALID_VALUES_GRADUATION = c(1, 2, 3, 4, 5, 6, 7, 8, 9);
@@ -83,7 +83,7 @@ replaceInvalidValues = function(rawData) {
   });
   countInvalidValuesInteraktionsbereitschaft = sum(!isInteraktionsbereitschaftValid);
   if(countInvalidValuesInteraktionsbereitschaft == 0) {
-    lgr$info('Alle Teilnehmer-Datensätze beinhalten (jetzt) ausschließlich gültige Werte für Interaktionsbereitschaft. Lösche nichts.');
+    lgr$info('Alle Teilnehmer-Datensätze beinhalten (jetzt) ausschließlich gültige Werte für Interaktionsbereitschaft, insbesondere keine NA-Werte. Bei Berechnungen auf diesen Spalten muss der Zusatz \"na.rm = TRUE\" nicht angegeben werden. Lösche nichts.');
   } else {
     invalidRows = rawData[!isInteraktionsbereitschaftValid,];
     lgr$warn('Es wurden %i Teilnehmer-Datensätze gefunden, die in der Interaktionsbereitschaft-Skala mindestens einen ungültigen Wert beinhalten. Es handelt sich um die Datensätze mit folgenden Nummern (lfdn): %s. Beheben Sie dieses Problem manuell.', countInvalidValuesInteraktionsbereitschaft, toString(invalidRows));
@@ -94,7 +94,7 @@ replaceInvalidValues = function(rawData) {
   });
   countInvalidValuesAllophilie = sum(!isAllophiliaValid);
   if(countInvalidValuesAllophilie == 0) {
-    lgr$info('Alle Teilnehmer-Datensätze beinhalten (jetzt) ausschließlich gültige Werte für Allophilie. Lösche nichts.');
+    lgr$info('Alle Teilnehmer-Datensätze beinhalten (jetzt) ausschließlich gültige Werte für Allophilie, insbesondere keine NA-Werte. Bei Berechnungen auf diesen Spalten muss der Zusatz \"na.rm = TRUE\" nicht angegeben werden. Lösche nichts.');
   } else {
     invalidRows = rawData[!isAllophiliaValid,];
     lgr$warn('Es wurden %i Teilnehmer-Datensätze gefunden, die in der Allophilie-Skala mindestens einen ungültigen Wert beinhalten. Es handelt sich um die Datensätze mit folgender Nummer (lfdn): %s. Beheben Sie dieses Problem manuell und starten Sie das Skript erneut.', countInvalidValuesAllophilie, toString(invalidRows$lfdn));
@@ -210,7 +210,7 @@ deleteColumns = function(rawData) {
 recodeDataset = function(rawData) {
   newLogSection('Rekodieren')
   
-  lgr$info('Ersetze alle Vorkommen von %s durch \"NA\".', toString(unlist(INVALID_ANSWER_VALUES)));
+  lgr$info('Ersetze alle Vorkommen von %s durch NA.', toString(unlist(INVALID_ANSWER_VALUES)));
   rawData = data.frame(lapply(rawData, function(col){
     replace(col, col %in% INVALID_ANSWER_VALUES, NA);
   }));
@@ -226,6 +226,8 @@ recodeDataset = function(rawData) {
   
   lgr$info('Rekodiere den verwendeten Bildschirm.');
   rawData[,SCREEN_ITEM] = factor(rawData[,SCREEN_ITEM], levels = VALID_VALUES_SCREENS, labels = LABELS_SCREENS, exclude = NULL);
+  
+  lgr$info('Rekodieren abgeschlossen. Die rekodierten Spalten können nun nicht mehr über die numerischen Werte im Codebuch gefiltert werden, sondern nur noch über die Faktorwerte, also bspw. \"data[data[\"v_107\"] == \"Smartphone\",]\".');
   
   return(rawData);
 }
@@ -271,10 +273,15 @@ if(!file.exists(PROCESSED_DATA_FILE_NAME)) {
 dataToAnalyze = readRDS(PROCESSED_DATA_FILE_NAME);
 
 newLogSection('Statistiken');
-lgr$info('Der vorverarbeitete Datensatz enthält Daten von %i Teilnehmern.', nrow(dataToAnalyze));
+
+# Separation beider Experimentalgruppen
+pos_neg_group = dataToAnalyze[dataToAnalyze[EXPERIMENTAL_CONDITION_ITEM] == 'Erst positiv, dann negativ',];
+neg_pos_group = dataToAnalyze[dataToAnalyze[EXPERIMENTAL_CONDITION_ITEM] == 'Erst negativ, dann positiv',];
+lgr$info('Der vorverarbeitete Datensatz enthält Daten von %i Teilnehmern. Davon haben %i Teilnehmer an der Versuchsbedingung \"Erst positiv, dann negativ\" teilgenommen und %i Teilnehmer an der Versuchsbedingung \"Erst negativ, dann positiv\".',
+         nrow(dataToAnalyze), nrow(pos_neg_group), nrow(neg_pos_group));
 
 # Mittleres Alter der Teilnehmer
-lgr$info('Das mittlere Alter der Teilnehmer beträgt %.2f Jahre, Standardabweichung = %.2f.', mean(dataToAnalyze$v_12), sd(dataToAnalyze$v_12));
+lgr$info('Das mittlere Alter aller Teilnehmer beträgt %.2f Jahre, SD = %.2f.', mean(dataToAnalyze$v_12), sd(dataToAnalyze$v_12));
 
 # Anteile der Geschlechter
 genderRatios = prop.table(table(dataToAnalyze[GENDER_ITEM])) * 100;
@@ -300,14 +307,27 @@ for(i in 1:length(graduationNames)) {
 }
 lgr$info(text);
 
-# Mittelwert und Standardabweichung von Interaktionsbereitschaft
-means = colMeans(dataToAnalyze[INTERAKTIONSBEREITSCHAFT_ITEMS]);
-lgr$info('Interaktionsbereitschaft: Mittelwert = %.4f, Standardabweichung = %.4f', mean(means), sd(means));
+# M und SD von Interaktionsbereitschaft
+means_pos_neg = colMeans(pos_neg_group[INTERAKTIONSBEREITSCHAFT_ITEMS]);
+means_neg_pos = colMeans(neg_pos_group[INTERAKTIONSBEREITSCHAFT_ITEMS]);
+lgr$info('Interaktionsbereitschaft, Versuchsgruppe \"Erst positiv, dann negativ\": M = %.4f, SD = %.4f',
+         mean(means_pos_neg), sd(means_pos_neg));
+lgr$info('Interaktionsbereitschaft, Versuchsgruppe \"Erst negativ, dann positiv\": M = %.4f, SD = %.4f',
+         mean(means_neg_pos), sd(means_neg_pos));
 
-# Mittelwert und Standardabweichung der einzelnen ALLO-15-Subskalen
-means = colMeans(dataToAnalyze[AFFECTION_ITEMS]);
-lgr$info('Allophilie - Positive Affekte: Mittelwert = %.4f, Standardabweichung = %.4f', mean(means), sd(means));
-means = colMeans(dataToAnalyze[ENTHUSIASM_ITEMS]);
-lgr$info('Allophilie - Enthusiasmus: Mittelwert = %.4f, Standardabweichung = %.4f', mean(means), sd(means));
+# M und SD der einzelnen ALLO-15-Subskalen
+means_pos_neg = colMeans(pos_neg_group[AFFECTION_ITEMS]);
+means_neg_pos = colMeans(neg_pos_group[AFFECTION_ITEMS]);
+lgr$info('Allophilie - Positive Affekte, Versuchsgruppe \"Erst positiv, dann negativ\": M = %.4f, SD = %.4f',
+         mean(means_pos_neg), sd(means_pos_neg));
+lgr$info('Allophilie - Positive Affekte, Versuchsgruppe \"Erst negativ, dann positiv\": M = %.4f, SD = %.4f',
+         mean(means_neg_pos), sd(means_neg_pos));
+
+means_pos_neg = colMeans(pos_neg_group[ENTHUSIASM_ITEMS]);
+means_neg_pos = colMeans(neg_pos_group[ENTHUSIASM_ITEMS]);
+lgr$info('Allophilie - Enthusiasmus, Versuchsgruppe \"Erst positiv, dann negativ\": M = %.4f, SD = %.4f',
+         mean(means_pos_neg), sd(means_pos_neg));
+lgr$info('Allophilie - Enthusiasmus, Versuchsgruppe \"Erst negativ, dann positiv\": M = %.4f, SD = %.4f',
+         mean(means_neg_pos), sd(means_neg_pos));
 
 print('Skript wurde erfolgreich ausgeführt.');
