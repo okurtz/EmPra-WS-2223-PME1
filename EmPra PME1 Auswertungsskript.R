@@ -1,4 +1,3 @@
-library(dplyr)
 library(lgr);
 library(rstudioapi);
 library(stringr);
@@ -33,23 +32,22 @@ SERIOUS_PARTICIPATION_ITEM = 'v_11';
 # Wert-Aliase
 I_AGREE_TO_MY_DATA_BEING_USED_VALUE = 1;
 I_AGREE_TO_PARTICIPATE_IN_THE_STUDY_VALUE = 1;
-INVALID_ANSWER_VALUE = -99;
-INVALID_ANSWER_TEXT = 'Keine Angabe/ungültig';
+INVALID_ANSWER_VALUES = c(-99, 0);
 I_STUDY_PSYCHOLOGY_AT_FU_HAGEN_VALUE = 1;
 NO_IMPAIRED_VISION_VALUE = 2;
 SERIOUS_PARTICIPATION_VALUE = 1;
 VALID_VALUES_ALLOPHILIA = seq(1, 6, by = 0.5);  # Sequenz, weil bei fehlenden Werten Mittelwerte verwendet werden, die evtl. nicht-ganzzahlig sind
-VALID_VALUES_EXPERIMENTAL_CONDITION = c(INVALID_ANSWER_VALUE, 1, 2);
-VALID_VALUES_GENDER = c(INVALID_ANSWER_VALUE, 1, 2, 3, 6);
-VALID_VALUES_GRADUATION = c(INVALID_ANSWER_VALUE, 1, 2, 3, 4, 5, 6, 7, 8, 9);
+VALID_VALUES_EXPERIMENTAL_CONDITION = c(1, 2);
+VALID_VALUES_GENDER = c(1, 2, 3, 6);
+VALID_VALUES_GRADUATION = c(1, 2, 3, 4, 5, 6, 7, 8, 9);
 VALID_VALUES_INTERAKTIONSBEREITSCHAFT = seq(1, 7, by = 0.5);
-VALID_VALUES_SCREENS = c(INVALID_ANSWER_VALUE, 1, 2, 3, 4, 5);
+VALID_VALUES_SCREENS = c(1, 2, 3, 4, 5);
 
 # Labels
-LABELS_EXPERIMENTAL_CONDITION = c(INVALID_ANSWER_TEXT, 'Erst positiv, dann negativ', 'Erst negativ, dann positiv');
-LABELS_GENDER = c(INVALID_ANSWER_TEXT, 'weiblich', 'männlich', 'divers', 'weiteres');
-LABELS_GRADUATION = c(INVALID_ANSWER_TEXT, 'Ohne Abschluss', 'Haupt-/Realschulabschluss', 'Fachhochschulreife/allgemeine Hochschulreife', 'Lehre/Berufsausbildung', 'Meister/Techniker', 'Bachelor', 'Master/Diplom', 'Promotion/Habilitation', 'Sonstiges');
-LABELS_SCREENS = c(INVALID_ANSWER_TEXT, 'Smartphone', 'Tablet', 'Laptop', 'Externer Bildschirm', 'Sonstiges');
+LABELS_EXPERIMENTAL_CONDITION = c('Erst positiv, dann negativ', 'Erst negativ, dann positiv');
+LABELS_GENDER = c('weiblich', 'männlich', 'divers', 'weiteres');
+LABELS_GRADUATION = c('Ohne Abschluss', 'Haupt-/Realschulabschluss', 'Fachhochschulreife/allgemeine Hochschulreife', 'Lehre/Berufsausbildung', 'Meister/Techniker', 'Bachelor', 'Master/Diplom', 'Promotion/Habilitation', 'Sonstiges');
+LABELS_SCREENS = c('Smartphone', 'Tablet', 'Laptop', 'Externer Bildschirm', 'Sonstiges');
 
 # Teilnehmer-Datensätze mit fehlenden/ungültigen Werten in der Allophilie-Skala
 INVALID_DATASETS_AFFECTION = mapply(list, c(504, 501, 402, 231), c('v_52', 'v_53', 'v_53', 'v_54'));
@@ -127,6 +125,8 @@ deleteRows = function(rawData) {
   countParticipantsWhoStudyPsychologyAtFUHagen = 0;
   
   newLogSection('Items löschen');
+  lgr$warn('Achtung: Es kann sein, dass ein Teilnehmer mehr als nur ein Ausschluss-Kriterium erfüllt. Die Anzahl der Teilnehmer, die aus einem bestimmten Grund ausgeschlossen werden, kann folglich von der Reihenfolge abhängen, in der die Datensätze gelöscht worden sind. Die Zahl der Datensätze, die in jedem Arbeitsschritt gelöscht werden, bezieht sich daher auf die zu diesem Punkt verbliebenen Datensätze, nicht auf die ursprünglich vorhandenen.');
+  
   nonSeriousParticipations = nrow(rawData[rawData[SERIOUS_PARTICIPATION_ITEM] != SERIOUS_PARTICIPATION_VALUE,]);
   if(nonSeriousParticipations == 0) {
     lgr$info('Alle Teilnehmer haben angegeben, ernsthaft teilgenommen zu haben. Lösche nichts.');
@@ -178,6 +178,7 @@ deleteRows = function(rawData) {
 
 deleteColumns = function(rawData) {
   newLogSection('Spalten löschen');
+  
   lgr$info('Lösche die Spalten der anderen Praktikumsgruppen.');
   rawData[c('v_58', 'v_59', 'v_60')] = list(NULL);  # Engagement, PME2
   rawData[c('v_61', 'v_62', 'v_63', 'v_64', 'v_65', 'v_66', 'v_67', 'v_68')] = list(NULL);   # Toleranz, PME3
@@ -208,21 +209,23 @@ deleteColumns = function(rawData) {
 
 recodeDataset = function(rawData) {
   newLogSection('Rekodieren')
+  
+  lgr$info('Ersetze alle Vorkommen von %s durch \"NA\".', toString(unlist(INVALID_ANSWER_VALUES)));
+  rawData = data.frame(lapply(rawData, function(col){
+    replace(col, col %in% INVALID_ANSWER_VALUES, NA);
+  }));
+  
   lgr$info('Rekodiere die Versuchsbedingung.');
-  rawData[,EXPERIMENTAL_CONDITION_ITEM] = factor(rawData[,EXPERIMENTAL_CONDITION_ITEM], levels = VALID_VALUES_EXPERIMENTAL_CONDITION, labels = LABELS_EXPERIMENTAL_CONDITION);
-  rawData[is.na(rawData[,EXPERIMENTAL_CONDITION_ITEM]),EXPERIMENTAL_CONDITION_ITEM] = INVALID_ANSWER_TEXT;
+  rawData[,EXPERIMENTAL_CONDITION_ITEM] = factor(rawData[,EXPERIMENTAL_CONDITION_ITEM], levels = VALID_VALUES_EXPERIMENTAL_CONDITION, labels = LABELS_EXPERIMENTAL_CONDITION, exclude = NULL);
   
   lgr$info('Rekodiere das Geschlecht.');
-  rawData[,GENDER_ITEM] = factor(rawData[,GENDER_ITEM], levels = VALID_VALUES_GENDER, labels = LABELS_GENDER);
-  rawData[is.na(rawData[,GENDER_ITEM]),GENDER_ITEM] = INVALID_ANSWER_TEXT;
+  rawData[,GENDER_ITEM] = factor(rawData[,GENDER_ITEM], levels = VALID_VALUES_GENDER, labels = LABELS_GENDER, exclude = NULL);
   
   lgr$info('Rekodiere den Bildungsabschluss.');
-  rawData[,GRADUATION_ITEM] = factor(rawData[,GRADUATION_ITEM], levels = VALID_VALUES_GRADUATION, labels = LABELS_GRADUATION);
-  rawData[is.na(rawData[,GRADUATION_ITEM]),GRADUATION_ITEM] = INVALID_ANSWER_TEXT;
+  rawData[,GRADUATION_ITEM] = addNA(factor(rawData[,GRADUATION_ITEM], levels = VALID_VALUES_GRADUATION, labels = LABELS_GRADUATION, exclude = NULL));
   
   lgr$info('Rekodiere den verwendeten Bildschirm.');
-  rawData[,SCREEN_ITEM] = factor(rawData[,SCREEN_ITEM], levels = VALID_VALUES_SCREENS, labels = LABELS_SCREENS);
-  rawData[is.na(rawData[,SCREEN_ITEM]),SCREEN_ITEM] = INVALID_ANSWER_TEXT;
+  rawData[,SCREEN_ITEM] = factor(rawData[,SCREEN_ITEM], levels = VALID_VALUES_SCREENS, labels = LABELS_SCREENS, exclude = NULL);
   
   return(rawData);
 }
@@ -230,7 +233,6 @@ recodeDataset = function(rawData) {
 preprocessData = function(fileName) {
   rawData = read.table(file = fileName, header = TRUE, sep=';');
   lgr$info('Beginne Vorverarbeitung der Daten. Der ursprüngliche Datensatz besteht aus %i Teilnehmer-Datensätzen.', nrow(rawData));
-  lgr$warn('Achtung: Es kann sein, dass ein Teilnehmer mehr als nur ein Ausschluss-Kriterium erfüllt. Die Anzahl der Teilnehmer, die aus einem bestimmten Grund ausgeschlossen werden, kann folglich von der Reihenfolge abhängen, in der die Datensätze gelöscht worden sind. Die Zahl der Datensätze, die in jedem Arbeitsschritt gelöscht werden, bezieht sich daher auf die zu diesem Punkt verbliebenen Datensätze, nicht auf die ursprünglich vorhandenen.');
   
   rawData = deleteRows(rawData);
   rawData = replaceInvalidValues(rawData)
@@ -276,10 +278,11 @@ lgr$info('Das mittlere Alter der Teilnehmer beträgt %.2f Jahre, Standardabweich
 
 # Anteile der Geschlechter
 genderRatios = prop.table(table(dataToAnalyze[GENDER_ITEM])) * 100;
+genderNames = names(genderRatios);
 text = 'Geschlecht der Teilnehmer (%):';
-for(i in 1:length(LABELS_GENDER)) {
-  text = paste(text, round(genderRatios[i], digits = DECIMAL_PLACES_TO_SHOW), LABELS_GENDER[i], sep = ' ');
-  if(i < length(LABELS_GENDER)) {
+for(i in 1:length(genderNames)) {
+  text = paste(text, round(genderRatios[i], digits = DECIMAL_PLACES_TO_SHOW), genderNames[i], sep = ' ');
+  if(i < length(genderNames)) {
     text = paste(text, ',', sep = '');
   }
 }
@@ -287,10 +290,11 @@ lgr$info(text);
 
 # Anteile der Bildungsabschlüsse
 gradRatios = prop.table(table(dataToAnalyze[GRADUATION_ITEM])) * 100;
+graduationNames = names(gradRatios);
 text = 'Bildungsabschlüsse der Teilnehmer (%):';
-for(i in 1:length(LABELS_GRADUATION)) {
-  text = paste(text, round(gradRatios[i], digits = DECIMAL_PLACES_TO_SHOW), LABELS_GRADUATION[i], sep = ' ');
-  if(i < length(LABELS_GRADUATION)) {
+for(i in 1:length(graduationNames)) {
+  text = paste(text, round(gradRatios[i], digits = DECIMAL_PLACES_TO_SHOW), graduationNames[i], sep = ' ');
+  if(i < length(graduationNames)) {
     text = paste(text, ',', sep = '');
   }
 }
