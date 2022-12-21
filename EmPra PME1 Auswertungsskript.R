@@ -10,9 +10,8 @@ LOG_PATH = './Log Datenverarbeitung.log';     # Relativer oder absoluter Pfad, e
 # Technische Einstellungen
 PROCESSED_DATA_FILE_NAME = paste(unlist(strsplit(SOURCE_FILE_NAME, '\\.'))[1], '.RDS', sep='');
 DECIMAL_PLACES_TO_SHOW = 2;
-SIGNIFICANCE_LEVEL = 0.05;
 VERSION_NUMBER = 'v0.0.4';
-VERSION_DATE = '19. Dezember 2022';
+VERSION_DATE = '21. Dezember 2022';
 
 # Item-Aliase
 AFFECTION_ITEMS = c('v_52', 'v_53', 'v_54');
@@ -315,13 +314,6 @@ lgr$info('Interaktionsbereitschaft, Versuchsgruppe \"Erst positiv, dann negativ\
          mean(means_pos_neg), sd(means_pos_neg));
 lgr$info('Interaktionsbereitschaft, Versuchsgruppe \"Erst negativ, dann positiv\": M = %.4f, SD = %.4f',
          mean(means_neg_pos), sd(means_neg_pos));
-sw_test_statistic = shapiro.test(means_pos_neg);
-if(sw_test_statistic[2] > SIGNIFICANCE_LEVEL) {
-  
-} else {
-  
-}
-
 
 # M und SD der einzelnen ALLO-15-Subskalen
 means_pos_neg = rowMeans(pos_neg_group[AFFECTION_ITEMS]);
