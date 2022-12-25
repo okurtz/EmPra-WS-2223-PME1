@@ -1,10 +1,11 @@
+library(car);
 library(dplyr);
 library(lgr);
 library(rstudioapi);
 library(stringr);
 
 # Diese Einstellungen dürfen angepasst werden. Erlaubt sind relative oder absolute Pfade, also bspw. auch "C:/Users/<Name>/Desktop/Log Datenverarbeitung.log". Wichtig: Der Pfad muss immer mit einem Dateinamen inkl. Dateiendung enden!
-SOURCE_FILE_NAME = 'EmPraWS2223_final.csv';         # Pfad zur Datei, die die Rohdaten enthält
+SOURCE_FILE_NAME = 'EmPraWS2223_final.csv';       # Pfad zur Datei, die die Rohdaten enthält
 LOG_PATH = 'Log Datenverarbeitung.log';           # Pfad zur Datei, in die das Log geschrieben werden soll
 OUTLIER_DUMP_PATH = 'Beseitigte Ausreißer.csv';   # Pfad zur Datei, in die die Ausreißer geschrieben werden sollen
 
@@ -15,6 +16,7 @@ VERSION_DATE = '24. Dezember 2022';
 
 # Item-Aliase
 AFFECTION_ITEMS = c('v_52', 'v_53', 'v_54');
+ALLOPHILIA_SORT_ORDER_CHEAT_NAME = 'v_57_2';  # Der Spaltenname sorgt dafür, dass die Spalte nach dem Sortieren an der gewünschten Position landet.
 DATA_USAGE_AGREEMENT_ITEM = 'v_8';
 DO_YOU_STUDY_ITEM = 'v_108';
 ENTHUSIASM_ITEMS = c('v_55', 'v_56', 'v_57');
@@ -24,6 +26,7 @@ GENDER_ITEM = 'v_9';
 GRADUATION_ITEM = 'v_10510';
 IMPAIRED_VISION_ITEM = 'v_110';
 INTERAKTIONSBEREITSCHAFT_ITEMS = c('v_46', 'v_47', 'v_48', 'v_49', 'v_50', 'v_51');
+TOTAL_ALLOPHILIA_ITEM = 'allophilia';
 ROW_ID = 'lfdn';
 SCREEN_ITEM = 'v_107';
 STUDY_PARTICIPATION_AGREEMENT_ITEM = 'Einverst_Bedingungen';
@@ -36,7 +39,7 @@ INVALID_ANSWER_VALUES = c(-99, 0);
 I_STUDY_PSYCHOLOGY_AT_FU_HAGEN_VALUE = 1;
 NO_IMPAIRED_VISION_VALUE = 2;
 SERIOUS_PARTICIPATION_VALUE = 1;
-VALID_VALUES_ALLOPHILIA = seq(1, 6, by = 0.5);  # Sequenz, weil bei fehlenden Werten Me verwendet werden, die evtl. nicht-ganzzahlig sind
+VALID_VALUES_ALLOPHILIA = seq(1, 6, by = 0.5);  # Sequenz, weil bei fehlenden Werten Mittelwerte verwendet werden, die evtl. nicht-ganzzahlig sind
 VALID_VALUES_EXPERIMENTAL_CONDITION = c(1, 2);
 VALID_VALUES_GENDER = c(1, 2, 3, 6);
 VALID_VALUES_GRADUATION = c(1, 2, 3, 4, 5, 6, 7, 8, 9);
@@ -221,7 +224,7 @@ recodeDataset = function(rawData) {
   lgr$info('Rekodiere den verwendeten Bildschirm.');
   rawData[,SCREEN_ITEM] = factor(rawData[,SCREEN_ITEM], levels = VALID_VALUES_SCREENS, labels = LABELS_SCREENS, exclude = NULL);
   
-  lgr$info('Rekodieren abgeschlossen. Die rekodierten Spalten können nun nicht mehr über die numerischen Werte im Codebuch gefiltert werden, sondern nur noch über die Faktorwerte, also bspw. \"data[data[\"v_107\"] == \"Smartphone\",]\" anstatt \"data[data[\"v_107\"] == 1,]\".');
+  lgr$info('Rekodieren abgeschlossen. Die rekodierten Spalten können nun nicht mehr über die numerischen Werte im Codebuch gefiltert werden, sondern nur noch über die Faktorwerte, also bspw. \"daten[daten[\"v_107\"] == \"Smartphone\",]\" anstatt \"daten[daten[\"v_107\"] == 1,]\".');
   
   return(rawData);
 }
@@ -301,6 +304,25 @@ removeOutliers = function(rawData, sds = 2) {
   return(rawData);
 }
 
+calculateAllophilia = function(rawData) {
+  affectionMeans = c();
+  enthusiasmMeans = c();
+  allophiliaMeans = c();
+  
+  newLogSection('Berechnung von Allophilie');
+  
+  affectionMeans = rowMeans(rawData[AFFECTION_ITEMS]);
+  enthusiasmMeans = rowMeans(rawData[ENTHUSIASM_ITEMS]);
+  allophiliaMeans = rowMeans(data.frame(affectionMeans, enthusiasmMeans), na.rm = TRUE);
+  rawData[ALLOPHILIA_SORT_ORDER_CHEAT_NAME] = allophiliaMeans;
+  
+  lgr$info('Die Teilnehmer-Datensätze beinhalten nun eine neue Spalte \"%s\", die die Mittelwerte beider Allophilie-Subskalen enthält.', TOTAL_ALLOPHILIA_ITEM);
+  lgr$info('%i Teilnehmer haben auf beiden Skalen nur \"NA\"-Werte, z.B. weil sie zuvor als Ausreißer erkannt und gelöscht worden sind. Diese Teilnehmer haben auch in der Spalte \"%s\" den Wert \"NA\".',
+           sum(is.na(rawData[TOTAL_ALLOPHILIA_ITEM])), TOTAL_ALLOPHILIA_ITEM);
+  
+  return(rawData);
+}
+
 preprocessData = function(fileName) {
   rawData = read.table(file = fileName, header = TRUE, sep=';');
   lgr$info('Beginne Vorverarbeitung der Daten. Der ursprüngliche Datensatz besteht aus %i Teilnehmer-Datensätzen.', nrow(rawData));
@@ -310,14 +332,15 @@ preprocessData = function(fileName) {
   rawData = deleteColumns(rawData);
   rawData = recodeDataset(rawData);
   rawData = removeOutliers(rawData);
+  rawData = calculateAllophilia(rawData);
   
   newLogSection('Technischer Abschluss der Vorverarbeitung');
   lgr$info('Sortiere alle Spalten ab der sechsten.');
   rawData = rawData[,c(colnames(rawData[1:5]), str_sort(colnames(rawData)[6:ncol(rawData)], numeric = TRUE))];
+  names(rawData)[names(rawData) == ALLOPHILIA_SORT_ORDER_CHEAT_NAME] = TOTAL_ALLOPHILIA_ITEM;
   lgr$info('Vorverarbeitung der Rohdaten abgeschlossen. Speichere die vorverarbeiteten Daten in der Datei \"%s.\"', PROCESSED_DATA_FILE_NAME);
   saveRDS(rawData, file = paste(getwd(), PROCESSED_DATA_FILE_NAME, sep='/'));
 }
-
 
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path));
 unlink(LOG_PATH);
@@ -339,7 +362,7 @@ if(!file.exists(PROCESSED_DATA_FILE_NAME)) {
 
 dataToAnalyze = readRDS(PROCESSED_DATA_FILE_NAME);
 
-newLogSection('Statistiken');
+newLogSection('Deskriptive Statistiken');
 
 # Separation beider Experimentalgruppen
 pos_neg_group = dataToAnalyze[dataToAnalyze[EXPERIMENTAL_CONDITION_ITEM] == 'Erst positiv, dann negativ',];
@@ -396,5 +419,14 @@ lgr$info('Allophilie - Enthusiasmus, Versuchsgruppe \"Erst positiv, dann negativ
          mean(means_pos_neg), sd(means_pos_neg), length(means_pos_neg));
 lgr$info('Allophilie - Enthusiasmus, Versuchsgruppe \"Erst negativ, dann positiv\": M = %.4f, SD = %.4f, n = %i',
          mean(means_neg_pos), sd(means_neg_pos), length(means_neg_pos));
+
+newLogSection('Inferenzstatistische Tests');
+
+# Test auf Varianzhomogenität mittels des Levene-Tests
+# Varianzhomogenität von Allophilie und Interaktionsbereitschaft.
+
+# Test auf Normalverteilung mittes des Shapiro-Wilk-Tests
+
+# Test der Nullhypothese.
 
 print('Skript wurde erfolgreich ausgeführt.');
