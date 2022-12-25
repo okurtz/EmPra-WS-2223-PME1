@@ -229,12 +229,15 @@ recodeDataset = function(rawData) {
 removeOutliers = function(rawData, sds = 2) {
   CUTOFF_MAX = sprintf('M_Skala + %i*SD', sds);
   CUTOFF_MIN = sprintf('M_Skala - %i*SD', sds);
+  doubleOutlier = 0;
+  tripleOutlier = 0;
   outlierItems = c(INTERAKTIONSBEREITSCHAFT_ITEMS, AFFECTION_ITEMS, ENTHUSIASM_ITEMS);
   additionalOutlierItems = c(ROW_ID, 'Skala', 'M_Skala', 'M_Teilnehmer', CUTOFF_MIN, CUTOFF_MAX);
   outliers = data.frame(matrix(ncol = length(additionalOutlierItems) + length(outlierItems)), nrow = 0) %>% mutate(ROW_ID = as.character(ROW_ID), .);
   
   removeOutliersInternal = function(scaleName, scaleItems) {
     means = c();
+    outlierTable = 0;
     scaleMean = 0;
     scaleSD = 0;
     upperThreshold = 0;
@@ -271,15 +274,30 @@ removeOutliers = function(rawData, sds = 2) {
   colnames(outliers) = c(additionalOutlierItems, outlierItems);
 
   newLogSection('Ausreißer entfernen');
-  lgr$info('Achtung: \"Entfernen\" von Ausreißern bedeutet nicht, dass der komplette Datensatz eines Teilnehmers gelöscht wird, sobald er auf einer Skala als Ausreißer erkennt worden ist (das wäre unsinnig), sondern dass Ausreißer-Antworten auf \"NA\" gesetzt werden.');
+  lgr$info('Achtung: \"Entfernen\" von Ausreißern bedeutet, dass Ausreißer-Antworten auf \"NA\" gesetzt werden. Es wird nicht der gesamte Datensatz gelöscht.');
   outliers = (bind_rows(removeOutliersInternal('Positive Affekte', AFFECTION_ITEMS)) %>%
              bind_rows(removeOutliersInternal('Enthusiasmus', ENTHUSIASM_ITEMS)) %>%
              bind_rows(removeOutliersInternal('Interaktionsbereitschaft', INTERAKTIONSBEREITSCHAFT_ITEMS), .))[, c(additionalOutlierItems, outlierItems)];
-  
-  lgr$info('Entfernen von Ausreißern abgeschlossen. Es wurden bei insgesamt %i Teilnehmern Ausreißer erkannt. Die Antworten, aufgrund derer sie als Ausreißer erkannt worden sind, befinden sich in der Datei \"%s\".',
-           nrow(outliers), OUTLIER_DUMP_PATH);
+
+  lgr$info('Entfernen von Ausreißern abgeschlossen. Es wurden bei insgesamt %i Teilnehmern Ausreißer erkannt.', nrow(outliers));  
+  outlierTable = table(outliers[ROW_ID]);
+  doubleOutlier = length(outlierTable[outlierTable == 2]);
+  tripleOutlier = length(outlierTable[outlierTable == 3]);
+  if(doubleOutlier == 0) {
+    lgr$info('Kein Teilnehmer wurde in genau zwei Skalen als Ausreißer gewertet.');
+  } else {
+    lgr$info('%i Teilnehmer wurden in genau zwei von drei Skalen als Ausreißer gewertet. Es handelt sich um die Teilnehmer mit folgenden Nummern: %s.',
+             doubleOutlier, toString(rownames(outlierTable[outlierTable == 2]), sep = ','));
+  }
+  if(tripleOutlier == 0) {
+    lgr$info('Kein Teilnehmer wurde in allen drei Skalen als Ausreißer gewertet.');
+  } else {
+    lgr$info('%i Teilnehmer wurden in allen drei Skalen als Ausreißer gewertet. Es handelt sich um die Teilnehmer mit folgenden Nummern: %s.',
+             doubleOutlier, toString(rownames(outlierTable[outlierTable == 3]), sep = ','));
+  }
   unlink(OUTLIER_DUMP_PATH);
   write.csv(outliers, OUTLIER_DUMP_PATH, row.names = FALSE);
+  lgr$info('Die Antworten der ausgeschlossenen Teilnehmer wurden in die Datei \"%s\" geschrieben.', OUTLIER_DUMP_PATH);
   return(rawData);
 }
 
