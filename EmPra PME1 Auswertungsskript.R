@@ -17,6 +17,7 @@ VERSION_DATE = '24. Dezember 2022';
 # Item-Aliase
 AFFECTION_ITEMS = c('v_52', 'v_53', 'v_54');
 ALLOPHILIA_SORT_ORDER_CHEAT_NAME = 'v_57_2';  # Der Spaltenname sorgt dafür, dass die Spalte nach dem Sortieren an der gewünschten Position landet.
+INTERAKTIONSBEREITSCHAFT_SORT_ORDER_CHEAT_NAME = 'v_51_2';
 DATA_USAGE_AGREEMENT_ITEM = 'v_8';
 DO_YOU_STUDY_ITEM = 'v_108';
 ENTHUSIASM_ITEMS = c('v_55', 'v_56', 'v_57');
@@ -26,7 +27,8 @@ GENDER_ITEM = 'v_9';
 GRADUATION_ITEM = 'v_10510';
 IMPAIRED_VISION_ITEM = 'v_110';
 INTERAKTIONSBEREITSCHAFT_ITEMS = c('v_46', 'v_47', 'v_48', 'v_49', 'v_50', 'v_51');
-TOTAL_ALLOPHILIA_ITEM = 'allophilia';
+MEAN_ALLOPHILIA_ITEM = 'M_Allophilie';
+MEAN_INTERAKTIONSBEREITSCHAFT_ITEM = 'M_Interaktionsbereitschaft';
 ROW_ID = 'lfdn';
 SCREEN_ITEM = 'v_107';
 STUDY_PARTICIPATION_AGREEMENT_ITEM = 'Einverst_Bedingungen';
@@ -304,21 +306,27 @@ removeOutliers = function(rawData, sds = 2) {
   return(rawData);
 }
 
-calculateAllophilia = function(rawData) {
+calculateScaleMeans = function(rawData) {
   affectionMeans = c();
   enthusiasmMeans = c();
   allophiliaMeans = c();
+  interaktionsbereitschaftMeans = c();
   
-  newLogSection('Berechnung von Allophilie');
+  newLogSection('Daten aggregieren');
   
   affectionMeans = rowMeans(rawData[AFFECTION_ITEMS]);
   enthusiasmMeans = rowMeans(rawData[ENTHUSIASM_ITEMS]);
   allophiliaMeans = rowMeans(data.frame(affectionMeans, enthusiasmMeans), na.rm = TRUE);
+  interaktionsbereitschaftMeans = rowMeans(rawData[INTERAKTIONSBEREITSCHAFT_ITEMS], na.rm = TRUE);
   rawData[ALLOPHILIA_SORT_ORDER_CHEAT_NAME] = allophiliaMeans;
+  rawData[INTERAKTIONSBEREITSCHAFT_SORT_ORDER_CHEAT_NAME] = interaktionsbereitschaftMeans;
   
-  lgr$info('Die Teilnehmer-Datensätze beinhalten nun eine neue Spalte \"%s\", die die Mittelwerte beider Allophilie-Subskalen enthält.', TOTAL_ALLOPHILIA_ITEM);
+  lgr$info('Die Teilnehmer-Datensätze haben nun eine neue Spalte \"%s\", die die Mittelwerte beider Allophilie-Subskalen enthält.', MEAN_ALLOPHILIA_ITEM);
   lgr$info('%i Teilnehmer haben auf beiden Skalen nur \"NA\"-Werte, z.B. weil sie zuvor als Ausreißer erkannt und gelöscht worden sind. Diese Teilnehmer haben auch in der Spalte \"%s\" den Wert \"NA\".',
-           sum(is.na(rawData[TOTAL_ALLOPHILIA_ITEM])), TOTAL_ALLOPHILIA_ITEM);
+           sum(is.na(rawData[ALLOPHILIA_SORT_ORDER_CHEAT_NAME])), MEAN_ALLOPHILIA_ITEM);
+  lgr$info('Die Teilnehmer-Datensätze haben nun eine neue Spalte \"%s\", die die Mittelwerte der Interaktionsbereitschaft-Skala enthält', MEAN_INTERAKTIONSBEREITSCHAFT_ITEM);
+  lgr$info('%i Teilnehmer haben auf der Interaktionsbereitschaft-Skala nur \"NA\"-Werte, z.B. weil sie zuvor als Ausreißer erkannt und gelöscht worden sind. Diese Teilnehmer haben auch in der Spalte \"%s\" den Wert \"NA\".',
+           sum(is.na(rawData[INTERAKTIONSBEREITSCHAFT_SORT_ORDER_CHEAT_NAME])), MEAN_INTERAKTIONSBEREITSCHAFT_ITEM);
   
   return(rawData);
 }
@@ -332,12 +340,13 @@ preprocessData = function(fileName) {
   rawData = deleteColumns(rawData);
   rawData = recodeDataset(rawData);
   rawData = removeOutliers(rawData);
-  rawData = calculateAllophilia(rawData);
+  rawData = calculateScaleMeans(rawData);
   
   newLogSection('Technischer Abschluss der Vorverarbeitung');
   lgr$info('Sortiere alle Spalten ab der sechsten.');
   rawData = rawData[,c(colnames(rawData[1:5]), str_sort(colnames(rawData)[6:ncol(rawData)], numeric = TRUE))];
-  names(rawData)[names(rawData) == ALLOPHILIA_SORT_ORDER_CHEAT_NAME] = TOTAL_ALLOPHILIA_ITEM;
+  names(rawData)[names(rawData) == ALLOPHILIA_SORT_ORDER_CHEAT_NAME] = MEAN_ALLOPHILIA_ITEM;
+  names(rawData)[names(rawData) == INTERAKTIONSBEREITSCHAFT_SORT_ORDER_CHEAT_NAME] = MEAN_INTERAKTIONSBEREITSCHAFT_ITEM;
   lgr$info('Vorverarbeitung der Rohdaten abgeschlossen. Speichere die vorverarbeiteten Daten in der Datei \"%s.\"', PROCESSED_DATA_FILE_NAME);
   saveRDS(rawData, file = paste(getwd(), PROCESSED_DATA_FILE_NAME, sep='/'));
 }
