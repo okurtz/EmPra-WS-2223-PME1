@@ -5,8 +5,8 @@ library(stringr);
 
 # Diese Einstellungen dürfen angepasst werden. Erlaubt sind relative oder absolute Pfade, also bspw. auch "C:/Users/<Name>/Desktop/Log Datenverarbeitung.log". Wichtig: Der Pfad muss immer mit einem Dateinamen inkl. Dateiendung enden!
 SOURCE_FILE_NAME = 'EmPraWS2223_final.csv';         # Pfad zur Datei, die die Rohdaten enthält
-LOG_PATH = './Log Datenverarbeitung.log';           # Pfad zur Datei, in die das Log geschrieben werden soll
-OUTLIER_DUMP_PATH = './Beseitigte Ausreißer.csv';   # Pfad zur Datei, in die die Ausreißer geschrieben werden sollen
+LOG_PATH = 'Log Datenverarbeitung.log';           # Pfad zur Datei, in die das Log geschrieben werden soll
+OUTLIER_DUMP_PATH = 'Beseitigte Ausreißer.csv';   # Pfad zur Datei, in die die Ausreißer geschrieben werden sollen
 
 # Technische Einstellungen
 PROCESSED_DATA_FILE_NAME = paste(unlist(strsplit(SOURCE_FILE_NAME, '\\.'))[1], '.RDS', sep='');
@@ -260,10 +260,10 @@ removeOutliers = function(rawData, sds = 2) {
       colnames(additionalOutlierData) = additionalOutlierItems;
       outliersInternal = merge(outliersInternal, additionalOutlierData, by = ROW_ID);
       for(i in 1:nrow(outliersInternal)) {
-        rawData[rawData[ROW_ID] == outliersInternal[i,ROW_ID],][scaleItems] = NA;
+        rawData[rawData[ROW_ID] == outliersInternal[i,ROW_ID],][scaleItems] <<- NA;
       }
       means = rowMeans(rawData[scaleItems]);
-      lgr$info('Nach der Beseitigung der Ausreißer sind M %.4f und SD = %.4f.', mean(means), sd(means));
+      lgr$info('Nach der Beseitigung der Ausreißer sind M = %.4f und SD = %.4f.', mean(means, na.rm = TRUE), sd(means, na.rm = TRUE));
     }
     return(outliersInternal);
   }
@@ -296,8 +296,8 @@ preprocessData = function(fileName) {
   newLogSection('Technischer Abschluss der Vorverarbeitung');
   lgr$info('Sortiere alle Spalten ab der sechsten.');
   rawData = rawData[,c(colnames(rawData[1:5]), str_sort(colnames(rawData)[6:ncol(rawData)], numeric = TRUE))];
-  lgr$info('Vorverarbeitung der Rohdaten abgeschlossen. Speichere die vorverarbeiteten Daten in der Datei %s.', PROCESSED_DATA_FILE_NAME);
-  # saveRDS(rawData, file = paste(getwd(), PROCESSED_DATA_FILE_NAME, sep='/'));
+  lgr$info('Vorverarbeitung der Rohdaten abgeschlossen. Speichere die vorverarbeiteten Daten in der Datei \"%s.\"', PROCESSED_DATA_FILE_NAME);
+  saveRDS(rawData, file = paste(getwd(), PROCESSED_DATA_FILE_NAME, sep='/'));
 }
 
 
@@ -357,26 +357,26 @@ for(i in 1:length(graduationNames)) {
 lgr$info(text);
 
 # M und SD von Interaktionsbereitschaft
-means_pos_neg = rowMeans(pos_neg_group[INTERAKTIONSBEREITSCHAFT_ITEMS]);
-means_neg_pos = rowMeans(neg_pos_group[INTERAKTIONSBEREITSCHAFT_ITEMS]);
-lgr$info('Interaktionsbereitschaft, Versuchsgruppe \"Erst positiv, dann negativ\": M = %.4f, SD = %.4f',
-         mean(means_pos_neg), sd(means_pos_neg));
-lgr$info('Interaktionsbereitschaft, Versuchsgruppe \"Erst negativ, dann positiv\": M = %.4f, SD = %.4f',
-         mean(means_neg_pos), sd(means_neg_pos));
+means_pos_neg = na.omit(rowMeans(pos_neg_group[INTERAKTIONSBEREITSCHAFT_ITEMS]));
+means_neg_pos = na.omit(rowMeans(neg_pos_group[INTERAKTIONSBEREITSCHAFT_ITEMS]));
+lgr$info('Interaktionsbereitschaft, Versuchsgruppe \"Erst positiv, dann negativ\": M = %.4f, SD = %.4f, n = %i',
+         mean(means_pos_neg), sd(means_pos_neg), length(means_pos_neg));
+lgr$info('Interaktionsbereitschaft, Versuchsgruppe \"Erst negativ, dann positiv\": M = %.4f, SD = %.4f, n = %i',
+         mean(means_neg_pos), sd(means_neg_pos), length(means_neg_pos));
 
 # M und SD der einzelnen ALLO-15-Subskalen
-means_pos_neg = rowMeans(pos_neg_group[AFFECTION_ITEMS]);
-means_neg_pos = rowMeans(neg_pos_group[AFFECTION_ITEMS]);
-lgr$info('Allophilie - Positive Affekte, Versuchsgruppe \"Erst positiv, dann negativ\": M = %.4f, SD = %.4f',
-         mean(means_pos_neg), sd(means_pos_neg));
-lgr$info('Allophilie - Positive Affekte, Versuchsgruppe \"Erst negativ, dann positiv\": M = %.4f, SD = %.4f',
-         mean(means_neg_pos), sd(means_neg_pos));
+means_pos_neg = na.omit(rowMeans(pos_neg_group[AFFECTION_ITEMS]));
+means_neg_pos = na.omit(rowMeans(neg_pos_group[AFFECTION_ITEMS]));
+lgr$info('Allophilie - Positive Affekte, Versuchsgruppe \"Erst positiv, dann negativ\": M = %.4f, SD = %.4f, n = %i',
+         mean(means_pos_neg), sd(means_pos_neg), length(means_pos_neg));
+lgr$info('Allophilie - Positive Affekte, Versuchsgruppe \"Erst negativ, dann positiv\": M = %.4f, SD = %.4f, n = %i',
+         mean(means_neg_pos), sd(means_neg_pos), length(means_neg_pos));
 
-means_pos_neg = rowMeans(pos_neg_group[ENTHUSIASM_ITEMS]);
-means_neg_pos = rowMeans(neg_pos_group[ENTHUSIASM_ITEMS]);
-lgr$info('Allophilie - Enthusiasmus, Versuchsgruppe \"Erst positiv, dann negativ\": M = %.4f, SD = %.4f',
-         mean(means_pos_neg), sd(means_pos_neg));
-lgr$info('Allophilie - Enthusiasmus, Versuchsgruppe \"Erst negativ, dann positiv\": M = %.4f, SD = %.4f',
-         mean(means_neg_pos), sd(means_neg_pos));
+means_pos_neg = na.omit(rowMeans(pos_neg_group[ENTHUSIASM_ITEMS]));
+means_neg_pos = na.omit(rowMeans(neg_pos_group[ENTHUSIASM_ITEMS]));
+lgr$info('Allophilie - Enthusiasmus, Versuchsgruppe \"Erst positiv, dann negativ\": M = %.4f, SD = %.4f, n = %i',
+         mean(means_pos_neg), sd(means_pos_neg), length(means_pos_neg));
+lgr$info('Allophilie - Enthusiasmus, Versuchsgruppe \"Erst negativ, dann positiv\": M = %.4f, SD = %.4f, n = %i',
+         mean(means_neg_pos), sd(means_neg_pos), length(means_neg_pos));
 
 print('Skript wurde erfolgreich ausgeführt.');
