@@ -1,3 +1,4 @@
+library(dplyr);
 library(lgr);
 library(rstudioapi);
 library(stringr);
@@ -5,13 +6,14 @@ library(stringr);
 # Diese Einstellungen dürfen angepasst werden
 SOURCE_FILE_NAME = 'EmPraWS2223_final.csv';   # Name der Datei, die die Rohdaten enthält, inkl. Dateiendung.
 LOG_PATH = './Log Datenverarbeitung.log';     # Relativer oder absoluter Pfad, erlaubt ist bspw. auch 'C:/Users/<Name>/Desktop/Log.log'
+ENABLE_OUTLIER_DUMP = TRUE;                   # TRUE: Ausreißer werden zur besseren Nachvollziehbarkeit in einer separaten Log-Datei ausgegeben. FALSE: Es werden lediglich die IDs der gefundenen Ausreißer im Log ausgegeben.
+OUTLIER_DUMP_PATH = './Beseitigte Ausreißer.csv';  # Pfad, in den die Ausreißer geschrieben werden
 # ENABLE_DATA_PREPROCESSING = TRUE;             # TRUE: Daten werden vorverarbeitet. FALSE: Daten werden nicht vorverarbeitet - Noch nicht implementiert
 
 # Technische Einstellungen
 PROCESSED_DATA_FILE_NAME = paste(unlist(strsplit(SOURCE_FILE_NAME, '\\.'))[1], '.RDS', sep='');
-DECIMAL_PLACES_TO_SHOW = 2;
-VERSION_NUMBER = 'v0.0.4';
-VERSION_DATE = '21. Dezember 2022';
+VERSION_NUMBER = 'v0.0.5';
+VERSION_DATE = '24. Dezember 2022';
 
 # Item-Aliase
 AFFECTION_ITEMS = c('v_52', 'v_53', 'v_54');
@@ -54,12 +56,6 @@ INVALID_DATASETS_AFFECTION = mapply(list, c(504, 501, 402, 231), c('v_52', 'v_53
 INVALID_DATASETS_ENTHUSIASM = mapply(list, c(257, 297, 504), c('v_55', 'v_55', 'v_56'));
 
 replaceInvalidValues = function(rawData) {
-  countInvalidValuesInteraktionsbereitschaft = 0;
-  countInvalidValuesAllophilie = 0;
-  isInteraktionsbereitschaftValid = c();
-  isAllophiliaValid = c();
-  
-  newLogSection('Behandlung von fehlenden oder ungültigen Werten');
   iterateItemList = function(rawData, invalidItemList, totalItemList) {
     for(i in 1:length(invalidItemList[1,])) {
       invalidRow = invalidItemList[[1,i]];
@@ -75,30 +71,30 @@ replaceInvalidValues = function(rawData) {
     }
     return(rawData);
   }
+  
+  checkForInvalidValues = function(scaleName, scaleItems, validValues) {
+    scaleValidityVector = c();
+    countInvalidValues = 0;
+    
+    scaleValidityVector = apply(rawData[scaleItems], 1, function(row) {
+      all(row %in% validValues);
+    });
+    countInvalidValues = sum(!scaleValidityVector);
+    if(countInvalidValues == 0) {
+      lgr$info('Auf der Skala \"%s\" wurden keine (weiteren) ungültigen Werte gefunden.', scaleName);
+    } else {
+      invalidRows = rawData[!scaleValidityVector,];
+      lgr$warn('Auf der Skala \"%s\" wurden %i Datensätze gefunden, die mindestens einen ungültigen Wert beinhalten. Es handelt sich um die Datensätze mit folgenden Nummern (lfdn): %s. Beheben Sie dieses Problem manuell.',
+               scaleName, countInvalidValues, toString(invalidRows));
+    }
+  }
+  
+  newLogSection('Behandlung von fehlenden oder ungültigen Werten');
+  
   rawData = iterateItemList(rawData, INVALID_DATASETS_AFFECTION, AFFECTION_ITEMS);
   rawData = iterateItemList(rawData, INVALID_DATASETS_ENTHUSIASM, ENTHUSIASM_ITEMS);
-  
-  isInteraktionsbereitschaftValid = apply(rawData[INTERAKTIONSBEREITSCHAFT_ITEMS], 1, function(row) {
-    all(row %in% VALID_VALUES_INTERAKTIONSBEREITSCHAFT);
-  });
-  countInvalidValuesInteraktionsbereitschaft = sum(!isInteraktionsbereitschaftValid);
-  if(countInvalidValuesInteraktionsbereitschaft == 0) {
-    lgr$info('Alle Teilnehmer-Datensätze beinhalten (jetzt) ausschließlich gültige Werte für Interaktionsbereitschaft, insbesondere keine NA-Werte. Bei Berechnungen auf diesen Spalten muss der Zusatz \"na.rm = TRUE\" nicht angegeben werden. Lösche nichts.');
-  } else {
-    invalidRows = rawData[!isInteraktionsbereitschaftValid,];
-    lgr$warn('Es wurden %i Teilnehmer-Datensätze gefunden, die in der Interaktionsbereitschaft-Skala mindestens einen ungültigen Wert beinhalten. Es handelt sich um die Datensätze mit folgenden Nummern (lfdn): %s. Beheben Sie dieses Problem manuell.', countInvalidValuesInteraktionsbereitschaft, toString(invalidRows));
-  }
-  
-  isAllophiliaValid = apply(rawData[ALLOPHILIA_ITEMS], 1, function(row) {
-    all(row %in% VALID_VALUES_ALLOPHILIA);
-  });
-  countInvalidValuesAllophilie = sum(!isAllophiliaValid);
-  if(countInvalidValuesAllophilie == 0) {
-    lgr$info('Alle Teilnehmer-Datensätze beinhalten (jetzt) ausschließlich gültige Werte für Allophilie, insbesondere keine NA-Werte. Bei Berechnungen auf diesen Spalten muss der Zusatz \"na.rm = TRUE\" nicht angegeben werden. Lösche nichts.');
-  } else {
-    invalidRows = rawData[!isAllophiliaValid,];
-    lgr$warn('Es wurden %i Teilnehmer-Datensätze gefunden, die in der Allophilie-Skala mindestens einen ungültigen Wert beinhalten. Es handelt sich um die Datensätze mit folgender Nummer (lfdn): %s. Beheben Sie dieses Problem manuell und starten Sie das Skript erneut.', countInvalidValuesAllophilie, toString(invalidRows$lfdn));
-  }
+  checkForInvalidValues('Interaktionsbereitschaft', INTERAKTIONSBEREITSCHAFT_ITEMS, VALID_VALUES_INTERAKTIONSBEREITSCHAFT);
+  checkForInvalidValues('Allophilie', ALLOPHILIA_ITEMS, VALID_VALUES_ALLOPHILIA);
   
   return(rawData);
 }
@@ -227,8 +223,65 @@ recodeDataset = function(rawData) {
   lgr$info('Rekodiere den verwendeten Bildschirm.');
   rawData[,SCREEN_ITEM] = factor(rawData[,SCREEN_ITEM], levels = VALID_VALUES_SCREENS, labels = LABELS_SCREENS, exclude = NULL);
   
-  lgr$info('Rekodieren abgeschlossen. Die rekodierten Spalten können nun nicht mehr über die numerischen Werte im Codebuch gefiltert werden, sondern nur noch über die Faktorwerte, also bspw. \"data[data[\"v_107\"] == \"Smartphone\",]\".');
+  lgr$info('Rekodieren abgeschlossen. Die rekodierten Spalten können nun nicht mehr über die numerischen Werte im Codebuch gefiltert werden, sondern nur noch über die Faktorwerte, also bspw. \"data[data[\"v_107\"] == \"Smartphone\",]\" anstatt \"data[data[\"v_107\"] == 1,]\".');
   
+  return(rawData);
+}
+
+removeOutliers = function(rawData, sds = 2) {
+  CUTOFF_MAX = sprintf('M_Skala + %i*SD', sds);
+  CUTOFF_MIN = sprintf('M_Skala - %i*SD', sds);
+  outlierItems = c(INTERAKTIONSBEREITSCHAFT_ITEMS, AFFECTION_ITEMS, ENTHUSIASM_ITEMS);
+  additionalOutlierItems = c(ROW_ID, 'Skala', 'M_Skala', 'M_Teilnehmer', CUTOFF_MIN, CUTOFF_MAX);
+  outliers = data.frame(matrix(ncol = length(additionalOutlierItems) + length(outlierItems)), nrow = 0) %>% mutate(ROW_ID = as.character(ROW_ID), .);
+  
+  removeOutliersInternal = function(scaleName, scaleItems) {
+    means = c();
+    scaleMean = 0;
+    scaleSD = 0;
+    upperThreshold = 0;
+    lowerThreshold = 0;
+    additionalOutlierData = data.frame(matrix(ncol = length(additionalOutlierItems), nrow = 0)) %>% mutate(ROW_ID = as.character(ROW_ID), .);
+    
+    lgr$info('Bereinige Skala \"%s\".', scaleName);
+    means = rowMeans(rawData[scaleItems]);
+    scaleMean = mean(means);
+    scaleSD = sd(means);
+    upperThreshold = scaleMean + sds*scaleSD;
+    lowerThreshold = scaleMean - sds*scaleSD;
+    lgr$info('Vor der Beseitigung der Ausreißer sind M = %.4f und SD = %.4f.', scaleMean, scaleSD);
+    
+    outliersInternal = rawData[means > upperThreshold | means < lowerThreshold,][c(ROW_ID, scaleItems)];
+    if(nrow(outliersInternal) == 0) {
+      lgr$info('Es wurden keine Ausreißer auf der Skala \"%s\" ermittelt.', scaleName);
+    } else {
+      lgr$info('Habe %i Teilnehmer gefunden, deren Mittelwert für \"%s\" größer als %.4f oder kleiner als %.4f ist. Die Antworten dieser Teilnehmer auf der Skala \"%s\" werden auf \"NA\" gesetzt.', 
+               nrow(outliersInternal), scaleName, upperThreshold, lowerThreshold, scaleName);
+      additionalOutlierData = data.frame(rawData[ROW_ID], c(scaleName), c(round(scaleMean, digits = 4)), round(means, digits = 4),
+                                         c(round(lowerThreshold, digits = 4)), c(round(upperThreshold, digits = 4)))[row.names(outliersInternal[ROW_ID]),];
+      colnames(additionalOutlierData) = additionalOutlierItems;
+      outliersInternal = merge(outliersInternal, additionalOutlierData, by = ROW_ID);
+      for(i in 1:nrow(outliersInternal)) {
+        rawData[rawData[ROW_ID] == outliersInternal[i,ROW_ID],][scaleItems] = NA;
+      }
+      means = rowMeans(rawData[scaleItems]);
+      lgr$info('Nach der Beseitigung der Ausreißer sind M %.4f und SD = %.4f.', mean(means), sd(means));
+    }
+    return(outliersInternal);
+  }
+  
+  colnames(outliers) = c(additionalOutlierItems, outlierItems);
+
+  newLogSection('Ausreißer entfernen');
+  lgr$info('Achtung: \"Entfernen\" von Ausreißern bedeutet nicht, dass der komplette Datensatz eines Teilnehmers gelöscht wird, sobald er auf einer Skala als Ausreißer erkennt worden ist (das wäre unsinnig), sondern dass Ausreißer-Antworten auf \"NA\" gesetzt werden.');
+  outliers = (bind_rows(removeOutliersInternal('Positive Affekte', AFFECTION_ITEMS)) %>%
+             bind_rows(removeOutliersInternal('Enthusiasmus', ENTHUSIASM_ITEMS)) %>%
+             bind_rows(removeOutliersInternal('Interaktionsbereitschaft', INTERAKTIONSBEREITSCHAFT_ITEMS), .))[, c(additionalOutlierItems, outlierItems)];
+  
+  lgr$info('Entfernen von Ausreißern abgeschlossen. Es wurden bei insgesamt %i Teilnehmern Ausreißer erkannt. Die Antworten, aufgrund derer sie als Ausreißer erkannt worden sind, befinden sich in der Datei \"%s\".',
+           nrow(outliers), OUTLIER_DUMP_PATH);
+  unlink(OUTLIER_DUMP_PATH);
+  write.csv(outliers, OUTLIER_DUMP_PATH, row.names = FALSE);
   return(rawData);
 }
 
@@ -238,17 +291,15 @@ preprocessData = function(fileName) {
   
   rawData = deleteRows(rawData);
   rawData = replaceInvalidValues(rawData)
-  
-  # Ausreißer löschen
-  
   rawData = deleteColumns(rawData);
   rawData = recodeDataset(rawData);
+  rawData = removeOutliers(rawData);
   
   newLogSection('Technischer Abschluss der Vorverarbeitung');
   lgr$info('Sortiere alle Spalten ab der sechsten.');
   rawData = rawData[,c(colnames(rawData[1:5]), str_sort(colnames(rawData)[6:ncol(rawData)], numeric = TRUE))];
   lgr$info('Vorverarbeitung der Rohdaten abgeschlossen. Speichere die vorverarbeiteten Daten in der Datei %s.', PROCESSED_DATA_FILE_NAME);
-  saveRDS(rawData, file = paste(getwd(), PROCESSED_DATA_FILE_NAME, sep='/'));
+  # saveRDS(rawData, file = paste(getwd(), PROCESSED_DATA_FILE_NAME, sep='/'));
 }
 
 
@@ -288,7 +339,7 @@ genderRatios = prop.table(table(dataToAnalyze[GENDER_ITEM])) * 100;
 genderNames = names(genderRatios);
 text = 'Geschlecht der Teilnehmer (%):';
 for(i in 1:length(genderNames)) {
-  text = paste(text, round(genderRatios[i], digits = DECIMAL_PLACES_TO_SHOW), genderNames[i], sep = ' ');
+  text = paste(text, round(genderRatios[i], digits = 2), genderNames[i], sep = ' ');
   if(i < length(genderNames)) {
     text = paste(text, ',', sep = '');
   }
@@ -300,7 +351,7 @@ gradRatios = prop.table(table(dataToAnalyze[GRADUATION_ITEM])) * 100;
 graduationNames = names(gradRatios);
 text = 'Bildungsabschlüsse der Teilnehmer (%):';
 for(i in 1:length(graduationNames)) {
-  text = paste(text, round(gradRatios[i], digits = DECIMAL_PLACES_TO_SHOW), graduationNames[i], sep = ' ');
+  text = paste(text, round(gradRatios[i], digits = 2), graduationNames[i], sep = ' ');
   if(i < length(graduationNames)) {
     text = paste(text, ',', sep = '');
   }
