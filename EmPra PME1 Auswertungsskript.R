@@ -3,12 +3,10 @@ library(lgr);
 library(rstudioapi);
 library(stringr);
 
-# Diese Einstellungen dürfen angepasst werden
-SOURCE_FILE_NAME = 'EmPraWS2223_final.csv';   # Name der Datei, die die Rohdaten enthält, inkl. Dateiendung.
-LOG_PATH = './Log Datenverarbeitung.log';     # Relativer oder absoluter Pfad, erlaubt ist bspw. auch 'C:/Users/<Name>/Desktop/Log.log'
-ENABLE_OUTLIER_DUMP = TRUE;                   # TRUE: Ausreißer werden zur besseren Nachvollziehbarkeit in einer separaten Log-Datei ausgegeben. FALSE: Es werden lediglich die IDs der gefundenen Ausreißer im Log ausgegeben.
-OUTLIER_DUMP_PATH = './Beseitigte Ausreißer.csv';  # Pfad, in den die Ausreißer geschrieben werden
-# ENABLE_DATA_PREPROCESSING = TRUE;             # TRUE: Daten werden vorverarbeitet. FALSE: Daten werden nicht vorverarbeitet - Noch nicht implementiert
+# Diese Einstellungen dürfen angepasst werden. Erlaubt sind relative oder absolute Pfade, also bspw. auch "C:/Users/<Name>/Desktop/Log Datenverarbeitung.log". Wichtig: Der Pfad muss immer mit einem Dateinamen inkl. Dateiendung enden!
+SOURCE_FILE_NAME = 'EmPraWS2223_final.csv';         # Pfad zur Datei, die die Rohdaten enthält
+LOG_PATH = './Log Datenverarbeitung.log';           # Pfad zur Datei, in die das Log geschrieben werden soll
+OUTLIER_DUMP_PATH = './Beseitigte Ausreißer.csv';   # Pfad zur Datei, in die die Ausreißer geschrieben werden sollen
 
 # Technische Einstellungen
 PROCESSED_DATA_FILE_NAME = paste(unlist(strsplit(SOURCE_FILE_NAME, '\\.'))[1], '.RDS', sep='');
