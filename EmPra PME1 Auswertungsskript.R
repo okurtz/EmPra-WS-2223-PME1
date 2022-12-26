@@ -229,7 +229,7 @@ recodeDataset = function(rawData) {
   lgr$info('Rekodiere den verwendeten Bildschirm.');
   rawData[,SCREEN_ITEM] = factor(rawData[,SCREEN_ITEM], levels = VALID_VALUES_SCREENS, labels = LABELS_SCREENS, exclude = NULL);
   
-  lgr$info('Rekodieren abgeschlossen. Die rekodierten Spalten können nun nicht mehr über die numerischen Werte im Codebuch gefiltert werden, sondern nur noch über die Faktorwerte, also bspw. \"daten[daten[\"v_107\"] == \"Smartphone\",]\" anstatt \"daten[daten[\"v_107\"] == 1,]\".');
+  lgr$info('Rekodieren abgeschlossen. Die rekodierten Spalten können nun nicht mehr über die numerischen Werte im Codebuch gefiltert werden, sondern nur noch über die Faktorwerte, also bspw. \"daten[daten[\"v_107\"] == \"Smartphone\",]\" anstatt \"daten[daten[\"v_107\"] == 1,]\". Faktorskalen können mit dem Befehl \"as.integer()\" wieder in ihre ursprüngliche numerische Darstellung überführt werden.');
   
   return(rawData);
 }
@@ -292,20 +292,20 @@ removeOutliers = function(rawData, sds = 2) {
   doubleOutlier = length(outlierTable[outlierTable == 2]);
   tripleOutlier = length(outlierTable[outlierTable == 3]);
   if(doubleOutlier == 0) {
-    lgr$info('Kein Teilnehmer wurde in genau zwei Skalen als Ausreißer gewertet.');
+    lgr$info('Kein Teilnehmer wird in genau zwei Skalen als Ausreißer gewertet.');
   } else {
-    lgr$info('%i Teilnehmer wurden in genau zwei von drei Skalen als Ausreißer gewertet. Es handelt sich um die Teilnehmer mit folgenden Nummern: %s.',
+    lgr$info('%i Teilnehmer werden in genau zwei von drei Skalen als Ausreißer gewertet. Es handelt sich um die Teilnehmer mit folgenden Nummern: %s.',
              doubleOutlier, toString(rownames(outlierTable[outlierTable == 2]), sep = ','));
   }
   if(tripleOutlier == 0) {
-    lgr$info('Kein Teilnehmer wurde in allen drei Skalen als Ausreißer gewertet.');
+    lgr$info('Kein Teilnehmer wird in allen drei Skalen als Ausreißer gewertet.');
   } else {
-    lgr$info('%i Teilnehmer wurden in allen drei Skalen als Ausreißer gewertet. Es handelt sich um die Teilnehmer mit folgenden Nummern: %s.',
+    lgr$info('%i Teilnehmer werden in allen drei Skalen als Ausreißer gewertet. Es handelt sich um die Teilnehmer mit folgenden Nummern: %s.',
              doubleOutlier, toString(rownames(outlierTable[outlierTable == 3]), sep = ','));
   }
   unlink(OUTLIER_DUMP_PATH);
   write.csv(outliers, OUTLIER_DUMP_PATH, row.names = FALSE);
-  lgr$info('Die Antworten der ausgeschlossenen Teilnehmer wurden in die Datei \"%s\" geschrieben.', OUTLIER_DUMP_PATH);
+  lgr$info('Habe die Antworten der ausgeschlossenen Teilnehmer in die Datei \"%s\" geschrieben.', OUTLIER_DUMP_PATH);
   return(rawData);
 }
 
@@ -416,8 +416,8 @@ rm(gradRatios, graduationNames, text, i);
 scaleLabels = c('Interaktionsbereitschaft', 'Allophilie - Positive Affekte', 'Allophilie - Enthusiasmus');
 scaleItems = list(INTERAKTIONSBEREITSCHAFT_ITEMS, AFFECTION_ITEMS, ENTHUSIASM_ITEMS);
 for(i in 1:length(scaleLabels)) {
-  means_pos_neg = na.omit(rowMeans(pos_neg_group[unlist(scaleItems[i])]));
-  means_neg_pos = na.omit(rowMeans(neg_pos_group[unlist(scaleItems[i])]));
+  means_pos_neg = na.omit(rowMeans(pos_neg_group[scaleItems[[i]]]));
+  means_neg_pos = na.omit(rowMeans(neg_pos_group[scaleItems[[i]]]));
   lgr$info('%s, Versuchsgruppe \"Erst positiv, dann negativ\": M = %.4f, SD = %.4f, n = %i',
            scaleLabels[i], mean(means_pos_neg), sd(means_pos_neg), length(means_pos_neg));
   lgr$info('%s, Versuchsgruppe \"Erst negativ, dann positiv\": M = %.4f, SD = %.4f, n = %i',
@@ -451,15 +451,15 @@ newLogSection('Test auf Normalverteilung');
 scaleLabels = c('Allophilie', 'Interaktionsbereitschaft');
 meanItems = c(MEAN_ALLOPHILIA_ITEM, MEAN_INTERAKTIONSBEREITSCHAFT_ITEM);
 experimentalGroups = list(pos_neg_group, neg_pos_group);  # Reihenfolge muss mit der Reihenfolge in LABELS_EXPERIMENTAL_CONDITION übereinstimmen!!
-lgr$info('Test auf Normalverteilung mittels des Tests von Shapiro und Wilk (1965). Die Nullhypothese lautet, dass sich die Verteilung der Experimentalgruppen auf auf den Skalen \"%s\" nicht signifikant von der Normalverteilung unterscheidet.', toString(scaleLabels, sep = ','));
+lgr$info('Test auf Normalverteilung mittels des Tests von Shapiro und Wilk (1965). Die Nullhypothese lautet, dass sich die Verteilung der Experimentalgruppen auf den Skalen \"%s\" nicht signifikant von der Normalverteilung unterscheidet.', toString(scaleLabels, sep = ','));
 for(i in 1:length(scaleLabels)) {
   for(j in 1:length(experimentalGroups)) {
     lgr$info('Teste, ob die Experimentalgruppe \"%s\" auf der Skala \"%s\" (Spalte \"%s\") normalverteilt ist.', LABELS_EXPERIMENTAL_CONDITION[j], scaleLabels[i], meanItems[i]);
     text = 'Für die Experimentalgruppe \"%s\", Skala \"%s\" ist W = %f, p = %f, n = %i.';
     testGroup = na.omit(experimentalGroups[[j]][meanItems[i]]);
     testResults = unlist(shapiro.test(unlist(testGroup)));
-    pValue = testResults[2];
-    text = sprintf(text, LABELS_EXPERIMENTAL_CONDITION[j], scaleLabels[i], as.numeric(testResults[1]), as.numeric(pValue), nrow(testGroup));
+    pValue = as.numeric(testResults[2]);
+    text = sprintf(text, LABELS_EXPERIMENTAL_CONDITION[j], scaleLabels[i], as.numeric(testResults[1]), pValue, nrow(testGroup));
     if(pValue < SIGNIFICANCE_LEVEL) {
       text = paste(text, sprintf('Damit ist die Nullhypothese zum Signifikanzniveau alpha = %.2f abzulehnen und es ist davon auszugehen, dass die Experimentalgruppe \"%s\" auf der Skala \"%s\" nicht normalverteilt ist.',
                                  SIGNIFICANCE_LEVEL, LABELS_EXPERIMENTAL_CONDITION[j], scaleLabels[i]), sep = ' ');
@@ -471,5 +471,13 @@ for(i in 1:length(scaleLabels)) {
   }
 }
 rm(scaleLabels, meanItems, experimentalGroups, pValue, testGroup, testResults, text, i, j);
+
+newLogSection('Hypothesen testen');
+lgr$info('Die Mittelwerte der Skalen \"Allophilie\" und \"Interaktionsbereitschaft\" weichen in ihrer Verteilung nicht signifikant von der Normalverteilung ab. Weiterhin sind ihre Varianzen über die Experimentalbedingungen hinweg nicht signifikant heterogen. Damit sind die Voraussetzungen für einen t-Test für zwei unabhängige Stichproben erfüllt.');
+lgr$info('Teste Hypothese 1: Die Teilnehmer der Experimentalgruppe \"Erst negativ, dann positiv\" zeigen weniger Allophilie als die Teilnehmer der Experimentalgruppe \"Erst positiv, dann negativ\". Die Nullhypothese lautet, dass kein Unterschied vorliegt.');
+testGroup = na.omit(dataToAnalyze[c(MEAN_ALLOPHILIA_ITEM, EXPERIMENTAL_CONDITION_ITEM)]);
+testGroup[EXPERIMENTAL_CONDITION_ITEM] = as.integer(testGroup[,EXPERIMENTAL_CONDITION_ITEM]);
+testResults = unlist(t.test(testGroup[,MEAN_ALLOPHILIA_ITEM] ~ testGroup[,EXPERIMENTAL_CONDITION_ITEM], alternative='greater', var.equal = TRUE, conf.level = 1 - SIGNIFICANCE_LEVEL)); # pos/neg = 1, neg/pos = 2, also ist pos/neg Gruppe 1 und mit 'greater' neg/pos Gruppe 2 und es wird pos/neg > neg/pos getestet.
+# lgr$info('Die Experimentalgruppe \"Erst negativ, dann positiv\" unterscheidet sich in ihrem ');
 
 print('Skript wurde erfolgreich ausgeführt.');
