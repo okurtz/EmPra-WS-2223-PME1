@@ -477,7 +477,15 @@ lgr$info('Die Mittelwerte der Skalen \"Allophilie\" und \"Interaktionsbereitscha
 lgr$info('Teste Hypothese 1: Die Teilnehmer der Experimentalgruppe \"Erst negativ, dann positiv\" zeigen weniger Allophilie als die Teilnehmer der Experimentalgruppe \"Erst positiv, dann negativ\". Die Nullhypothese lautet, dass kein Unterschied vorliegt.');
 testGroup = na.omit(dataToAnalyze[c(MEAN_ALLOPHILIA_ITEM, EXPERIMENTAL_CONDITION_ITEM)]);
 testGroup[EXPERIMENTAL_CONDITION_ITEM] = as.integer(testGroup[,EXPERIMENTAL_CONDITION_ITEM]);
-testResults = unlist(t.test(testGroup[,MEAN_ALLOPHILIA_ITEM] ~ testGroup[,EXPERIMENTAL_CONDITION_ITEM], alternative='greater', var.equal = TRUE, conf.level = 1 - SIGNIFICANCE_LEVEL)); # pos/neg = 1, neg/pos = 2, also ist pos/neg Gruppe 1 und mit 'greater' neg/pos Gruppe 2 und es wird pos/neg > neg/pos getestet.
-# lgr$info('Die Experimentalgruppe \"Erst negativ, dann positiv\" unterscheidet sich in ihrem ');
+testResults = unlist(t.test(testGroup[,MEAN_ALLOPHILIA_ITEM] ~ testGroup[,EXPERIMENTAL_CONDITION_ITEM], alternative = 'greater', var.equal = TRUE, conf.level = 1 - SIGNIFICANCE_LEVEL));   # pos/neg = 1, neg/pos = 2, also ist pos/neg Gruppe 1 und mit 'greater' neg/pos Gruppe 2 und es wird pos/neg > neg/pos getestet.
+lgr$info('Die Experimentalgruppe \"Erst negativ, dann positiv\" zeigt nicht signifikant mehr Allophilie als die Experimentalgruppe \"Erst positiv, dann negativ.\" (t(%i) = %.4f, p = %.4f). Damit ist die Nullhypothese zu akzeptieren.',
+         as.numeric(testResults[2]), as.numeric(testResults[1]), as.numeric(testResults[3]));
+rm(testGroup, testResults);
 
+lgr$info('Teste Hypothese 2: Die Teilnehmer der \"Erst negativ, dann positiv\" zeigen weniger Interaktionsbereitschaft als die Teilnehmer der Experimentalgruppe \"Erst positiv, dann negativ\". Die Nullhypothese lautet, dass kein Unterschied vorliegt.');
+testGroup = na.omit(dataToAnalyze[c(MEAN_INTERAKTIONSBEREITSCHAFT_ITEM, EXPERIMENTAL_CONDITION_ITEM)]);
+testResults = unlist(t.test(testGroup[,MEAN_INTERAKTIONSBEREITSCHAFT_ITEM] ~ testGroup[,EXPERIMENTAL_CONDITION_ITEM], alternative = 'greater', var.equal = TRUE, conf.level = 1 - SIGNIFICANCE_LEVEL));   # pos/neg = 1, neg/pos = 2, also ist pos/neg Gruppe 1 und mit 'greater' neg/pos Gruppe 2 und es wird pos/neg > neg/pos getestet.
+lgr$info('Die Experimentalgruppe \"Erst negativ, dann positiv\" zeigt nicht signifikant mehr Interaktionsbereitschaft als die Teilnehmer der Experimentalgruppe \"Erst positiv, dann negativ\" (t(%i) = %.4f, p = %.4f). Damit ist die Nullhypothese zu akzeptieren.',
+         as.numeric(testResults[2]), as.numeric(testResults[1]), as.numeric(testResults[3]));
+lgr$info('\nThat\'s all Folks! *Looney Tunes-Musik*');
 print('Skript wurde erfolgreich ausgeführt.');
