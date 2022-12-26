@@ -413,8 +413,8 @@ lgr$info(text);
 rm(gradRatios, graduationNames, text, i);
 
 # M und SD der einzelnen Skalen
-scaleLabels = c('Interaktionsbereitschaft', 'Allophilie - Positive Affekte', 'Allophilie - Enthusiasmus');
-scaleItems = list(INTERAKTIONSBEREITSCHAFT_ITEMS, AFFECTION_ITEMS, ENTHUSIASM_ITEMS);
+scaleLabels = c('Interaktionsbereitschaft', 'Allophilie - Gesamt', 'Allophilie - Positive Affekte', 'Allophilie - Enthusiasmus');
+scaleItems = list(INTERAKTIONSBEREITSCHAFT_ITEMS, MEAN_ALLOPHILIA_ITEM, AFFECTION_ITEMS, ENTHUSIASM_ITEMS);
 for(i in 1:length(scaleLabels)) {
   means_pos_neg = na.omit(rowMeans(pos_neg_group[scaleItems[[i]]]));
   means_neg_pos = na.omit(rowMeans(neg_pos_group[scaleItems[[i]]]));
