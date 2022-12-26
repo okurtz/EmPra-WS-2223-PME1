@@ -58,6 +58,9 @@ LABELS_SCREENS = c('Smartphone', 'Tablet', 'Laptop', 'Externer Bildschirm', 'Son
 INVALID_DATASETS_AFFECTION = mapply(list, c(504, 501, 402, 231), c('v_52', 'v_53', 'v_53', 'v_54'));
 INVALID_DATASETS_ENTHUSIASM = mapply(list, c(257, 297, 504), c('v_55', 'v_55', 'v_56'));
 
+# Einstellungen für inferenzstatistische Tests
+SIGNIFICANCE_LEVEL = 0.05;
+
 replaceInvalidValues = function(rawData) {
   iterateItemList = function(rawData, invalidItemList, totalItemList) {
     for(i in 1:length(invalidItemList[1,])) {
@@ -393,6 +396,7 @@ for(i in 1:length(genderNames)) {
   }
 }
 lgr$info(text);
+rm(genderRatios, genderNames, text);
 
 # Anteile der Bildungsabschlüsse
 gradRatios = prop.table(table(dataToAnalyze[GRADUATION_ITEM])) * 100;
@@ -405,34 +409,44 @@ for(i in 1:length(graduationNames)) {
   }
 }
 lgr$info(text);
+rm(gradRatios, graduationNames, text);
 
-# M und SD von Interaktionsbereitschaft
-means_pos_neg = na.omit(rowMeans(pos_neg_group[INTERAKTIONSBEREITSCHAFT_ITEMS]));
-means_neg_pos = na.omit(rowMeans(neg_pos_group[INTERAKTIONSBEREITSCHAFT_ITEMS]));
-lgr$info('Interaktionsbereitschaft, Versuchsgruppe \"Erst positiv, dann negativ\": M = %.4f, SD = %.4f, n = %i',
-         mean(means_pos_neg), sd(means_pos_neg), length(means_pos_neg));
-lgr$info('Interaktionsbereitschaft, Versuchsgruppe \"Erst negativ, dann positiv\": M = %.4f, SD = %.4f, n = %i',
-         mean(means_neg_pos), sd(means_neg_pos), length(means_neg_pos));
-
-# M und SD der einzelnen ALLO-15-Subskalen
-means_pos_neg = na.omit(rowMeans(pos_neg_group[AFFECTION_ITEMS]));
-means_neg_pos = na.omit(rowMeans(neg_pos_group[AFFECTION_ITEMS]));
-lgr$info('Allophilie - Positive Affekte, Versuchsgruppe \"Erst positiv, dann negativ\": M = %.4f, SD = %.4f, n = %i',
-         mean(means_pos_neg), sd(means_pos_neg), length(means_pos_neg));
-lgr$info('Allophilie - Positive Affekte, Versuchsgruppe \"Erst negativ, dann positiv\": M = %.4f, SD = %.4f, n = %i',
-         mean(means_neg_pos), sd(means_neg_pos), length(means_neg_pos));
-
-means_pos_neg = na.omit(rowMeans(pos_neg_group[ENTHUSIASM_ITEMS]));
-means_neg_pos = na.omit(rowMeans(neg_pos_group[ENTHUSIASM_ITEMS]));
-lgr$info('Allophilie - Enthusiasmus, Versuchsgruppe \"Erst positiv, dann negativ\": M = %.4f, SD = %.4f, n = %i',
-         mean(means_pos_neg), sd(means_pos_neg), length(means_pos_neg));
-lgr$info('Allophilie - Enthusiasmus, Versuchsgruppe \"Erst negativ, dann positiv\": M = %.4f, SD = %.4f, n = %i',
-         mean(means_neg_pos), sd(means_neg_pos), length(means_neg_pos));
+# M und SD der einzelnen Skalen
+scaleLabels = c('Interaktionsbereitschaft', 'Allophilie - Positive Affekte', 'Allophilie - Enthusiasmus');
+scaleItems = list(INTERAKTIONSBEREITSCHAFT_ITEMS, AFFECTION_ITEMS, ENTHUSIASM_ITEMS);
+lgr$info('!! Achtung!! Bitte nochmal nachvollziehen, welche Werte in den Schleifen verarbeitet werden und ob wirklich alles so ist wie gedacht!');
+for(i in 1:length(scaleLabels)) {
+  means_pos_neg = na.omit(rowMeans(pos_neg_group[unlist(scaleItems[i])]));
+  means_neg_pos = na.omit(rowMeans(neg_pos_group[unlist(scaleItems[i])]));
+  lgr$info('%s, Versuchsgruppe \"Erst positiv, dann negativ\": M = %.4f, SD = %.4f, n = %i',
+           scaleLabels[i], mean(means_pos_neg), sd(means_pos_neg), length(means_pos_neg));
+  lgr$info('%s, Versuchsgruppe \"Erst negativ, dann positiv\": M = %.4f, SD = %.4f, n = %i',
+           scaleLabels[i], mean(means_neg_pos), sd(means_neg_pos), length(means_neg_pos));
+}
+rm(scaleLabels, scaleItems);
 
 newLogSection('Inferenzstatistische Tests');
 
-# Test auf Varianzhomogenität mittels des Levene-Tests
-# Varianzhomogenität von Allophilie und Interaktionsbereitschaft.
+# Interaktionsbereitschaft und Allophilie mittels des Levene-Tests auf Varianzhomogenität testen
+scaleLabels = c('Interaktionsbereitschaft', 'Allophilie');
+meanItems = c(MEAN_INTERAKTIONSBEREITSCHAFT_ITEM, MEAN_ALLOPHILIA_ITEM);
+lgr$info('Teste die Skalen %s mittels des Tests von Levene (1960) auf Varianzhomogenität. Die Nullhypothese lautet, dass die Varianz der Skalen über die Experimentalbedingungen hinweg homogen ist.', toString(scaleLabels));
+for(i in 1:length(scaleLabels)) {
+  text = 'Für die Skala \"%s\" ist F(%i,%i) = %.4f, p = %f.';
+  testGroup = na.omit(dataToAnalyze[c(meanItems[i], EXPERIMENTAL_CONDITION_ITEM)]);
+  testResults = unlist(leveneTest(testGroup[,meanItems[i]], testGroup[,EXPERIMENTAL_CONDITION_ITEM]));
+  pValue = testResults[5];
+  text = sprintf(text, scaleLabels[i], testResults[1], testResults[2], testResults[3], testResults[5]);
+  if(pValue < SIGNIFICANCE_LEVEL) {
+    text = paste(text, sprintf('Damit ist die Nullhypothese zum Signifikanzniveau alpha = %.2f abzulehnen und es ist davon auszugehen, dass die Varianzen über die Experimentalbedingungen hinweg heterogen sind.',
+                               SIGNIFICANCE_LEVEL), sep = ' ');
+  } else {
+    text = paste(text, sprintf('Damit ist die Nullhypothese zum Signifikanzniveau alpha = %.2f zu akzeptieren und es ist davon auszugehen, dass die Varianzen über die Experimentalbedingungen homogen sind.',
+                               SIGNIFICANCE_LEVEL), sep = ' ');
+  }
+  lgr$info(text, scaleLabels[i], testResults[1], testResults[2], pValue);
+}
+rm(scaleLabels, meanItems);
 
 # Test auf Normalverteilung mittes des Shapiro-Wilk-Tests
 
