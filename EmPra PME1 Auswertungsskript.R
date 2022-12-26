@@ -410,7 +410,7 @@ for(i in 1:length(graduationNames)) {
   }
 }
 lgr$info(text);
-rm(gradRatios, graduationNames, text);
+rm(gradRatios, graduationNames, text, i);
 
 # M und SD der einzelnen Skalen
 scaleLabels = c('Interaktionsbereitschaft', 'Allophilie - Positive Affekte', 'Allophilie - Enthusiasmus');
@@ -423,14 +423,14 @@ for(i in 1:length(scaleLabels)) {
   lgr$info('%s, Versuchsgruppe \"Erst negativ, dann positiv\": M = %.4f, SD = %.4f, n = %i',
            scaleLabels[i], mean(means_neg_pos), sd(means_neg_pos), length(means_neg_pos));
 }
-rm(scaleLabels, scaleItems);
+rm(scaleLabels, scaleItems, i);
 
 newLogSection('Test auf Varianzhomogenität');
 scaleLabels = c('Interaktionsbereitschaft', 'Allophilie');
 meanItems = c(MEAN_INTERAKTIONSBEREITSCHAFT_ITEM, MEAN_ALLOPHILIA_ITEM);
-lgr$info('Test auf Varianzhomogenität mittels des Tests von Levene (1960).');
+lgr$info('Test auf Varianzhomogenität mittels des Tests von Levene (1960). Die Nullhypothese lautet, dass sich die Varianz der Skalen %s zwischen den beiden Experimentalbedingungen nicht signifikant unterscheidet.', toString(scaleLabels, sep = ','));
 for(i in 1:length(scaleLabels)) {
-  lgr$info(sprintf('Teste die Skala \"%s\". Die Nullhypothese lautet, dass sich die Varianz auf dieser Skala zwischen den beiden Experimentalbedingungen nicht signifikant unterscheidet.', scaleLabels[i]));
+  lgr$info('Teste die Skala \"%s\".', scaleLabels[i]);
   text = 'Für die Skala \"%s\" ist F(%i,%i) = %.4f, p = %f, n = %i.';
   testGroup = na.omit(dataToAnalyze[c(meanItems[i], EXPERIMENTAL_CONDITION_ITEM)]);
   testResults = unlist(leveneTest(testGroup[,meanItems[i]], testGroup[,EXPERIMENTAL_CONDITION_ITEM]));
@@ -445,17 +445,16 @@ for(i in 1:length(scaleLabels)) {
   }
   lgr$info(text);
 }
-rm(scaleLabels, meanItems);
+rm(scaleLabels, meanItems, pValue, testGroup, testResults, text, i);
 
 newLogSection('Test auf Normalverteilung');
-scaleLabels = c('Interaktionsbereitschaft', 'Allophilie');
-meanItems = c(MEAN_INTERAKTIONSBEREITSCHAFT_ITEM, MEAN_ALLOPHILIA_ITEM);
+scaleLabels = c('Allophilie', 'Interaktionsbereitschaft');
+meanItems = c(MEAN_ALLOPHILIA_ITEM, MEAN_INTERAKTIONSBEREITSCHAFT_ITEM);
 experimentalGroups = list(pos_neg_group, neg_pos_group);  # Reihenfolge muss mit der Reihenfolge in LABELS_EXPERIMENTAL_CONDITION übereinstimmen!!
-lgr$info('Test auf Normalverteilung mittels des Tests von Shapiro und Wilk (1965).');
+lgr$info('Test auf Normalverteilung mittels des Tests von Shapiro und Wilk (1965). Die Nullhypothese lautet, dass sich die Verteilung der Experimentalgruppen auf auf den Skalen \"%s\" nicht signifikant von der Normalverteilung unterscheidet.', toString(scaleLabels, sep = ','));
 for(i in 1:length(scaleLabels)) {
   for(j in 1:length(experimentalGroups)) {
-    lgr$info('Teste, ob die Experimentalgruppe \"%s\" auf der Skala \"%s\" (Spalte \"%s\") normalverteilt ist. Die Nullhypothese lautet, dass sich die Verteilung dieser dieser Experimentalgruppe auf dieser Skala nicht signifikant von der Normalverteilung unterscheidet.',
-             LABELS_EXPERIMENTAL_CONDITION[j], scaleLabels[i], meanItems[i]);
+    lgr$info('Teste, ob die Experimentalgruppe \"%s\" auf der Skala \"%s\" (Spalte \"%s\") normalverteilt ist.', LABELS_EXPERIMENTAL_CONDITION[j], scaleLabels[i], meanItems[i]);
     text = 'Für die Experimentalgruppe \"%s\", Skala \"%s\" ist W = %f, p = %f, n = %i.';
     testGroup = na.omit(experimentalGroups[[j]][meanItems[i]]);
     testResults = unlist(shapiro.test(unlist(testGroup)));
@@ -471,5 +470,6 @@ for(i in 1:length(scaleLabels)) {
     lgr$info(text);
   }
 }
+rm(scaleLabels, meanItems, experimentalGroups, pValue, testGroup, testResults, text, i, j);
 
 print('Skript wurde erfolgreich ausgeführt.');
