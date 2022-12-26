@@ -369,7 +369,8 @@ if(!file.exists(PROCESSED_DATA_FILE_NAME)) {
   lgr$info('Konnte die Datei %s nicht finden. Greife auf die Originaldaten zurück.', PROCESSED_DATA_FILE_NAME);
   preprocessData(SOURCE_FILE_NAME);
 } else {
-  lgr$info('Habe Datei %s gefunden und verwende sie nun.', PROCESSED_DATA_FILE_NAME);
+  lgr$info('Habe Datei \"%s\" gefunden und verwende sie nun. Um die Bereinigung der Originaldaten neu auszulösen und die Verarbeitungsschritte im Log auszugeben, bitte die Datei \"%s\" löschen und das Skript neu starten.',
+           PROCESSED_DATA_FILE_NAME, PROCESSED_DATA_FILE_NAME);
 }
 
 dataToAnalyze = readRDS(PROCESSED_DATA_FILE_NAME);
@@ -414,7 +415,6 @@ rm(gradRatios, graduationNames, text);
 # M und SD der einzelnen Skalen
 scaleLabels = c('Interaktionsbereitschaft', 'Allophilie - Positive Affekte', 'Allophilie - Enthusiasmus');
 scaleItems = list(INTERAKTIONSBEREITSCHAFT_ITEMS, AFFECTION_ITEMS, ENTHUSIASM_ITEMS);
-lgr$info('!! Achtung!! Bitte nochmal nachvollziehen, welche Werte in den Schleifen verarbeitet werden und ob wirklich alles so ist wie gedacht!');
 for(i in 1:length(scaleLabels)) {
   means_pos_neg = na.omit(rowMeans(pos_neg_group[unlist(scaleItems[i])]));
   means_neg_pos = na.omit(rowMeans(neg_pos_group[unlist(scaleItems[i])]));
@@ -425,18 +425,18 @@ for(i in 1:length(scaleLabels)) {
 }
 rm(scaleLabels, scaleItems);
 
-newLogSection('Inferenzstatistische Tests');
+newLogSection('Test auf Varianzhomogenität');
 
-# Interaktionsbereitschaft und Allophilie mittels des Levene-Tests auf Varianzhomogenität testen
 scaleLabels = c('Interaktionsbereitschaft', 'Allophilie');
 meanItems = c(MEAN_INTERAKTIONSBEREITSCHAFT_ITEM, MEAN_ALLOPHILIA_ITEM);
-lgr$info('Teste die Skalen %s mittels des Tests von Levene (1960) auf Varianzhomogenität. Die Nullhypothese lautet, dass die Varianz der Skalen über die Experimentalbedingungen hinweg homogen ist.', toString(scaleLabels));
+lgr$info('Test auf Varianzhomogenität mittels des Tests von Levene (1960).');
 for(i in 1:length(scaleLabels)) {
-  text = 'Für die Skala \"%s\" ist F(%i,%i) = %.4f, p = %f.';
+  lgr$info(sprintf('Teste die Skala \"%s\". Die Nullhypothese lautet, dass sich die Varianz auf dieser Skala zwischen den beiden Experimentalbedingungen nicht signifikant unterscheidet.', scaleLabels[i]));
+  text = 'Für die Skala \"%s\" ist F(%i,%i) = %.4f, p = %f, n = %i.';
   testGroup = na.omit(dataToAnalyze[c(meanItems[i], EXPERIMENTAL_CONDITION_ITEM)]);
   testResults = unlist(leveneTest(testGroup[,meanItems[i]], testGroup[,EXPERIMENTAL_CONDITION_ITEM]));
   pValue = testResults[5];
-  text = sprintf(text, scaleLabels[i], testResults[1], testResults[2], testResults[3], testResults[5]);
+  text = sprintf(text, scaleLabels[i], testResults[1], testResults[2], testResults[3], testResults[5], nrow(testGroup));
   if(pValue < SIGNIFICANCE_LEVEL) {
     text = paste(text, sprintf('Damit ist die Nullhypothese zum Signifikanzniveau alpha = %.2f abzulehnen und es ist davon auszugehen, dass die Varianzen über die Experimentalbedingungen hinweg heterogen sind.',
                                SIGNIFICANCE_LEVEL), sep = ' ');
@@ -444,11 +444,32 @@ for(i in 1:length(scaleLabels)) {
     text = paste(text, sprintf('Damit ist die Nullhypothese zum Signifikanzniveau alpha = %.2f zu akzeptieren und es ist davon auszugehen, dass die Varianzen über die Experimentalbedingungen homogen sind.',
                                SIGNIFICANCE_LEVEL), sep = ' ');
   }
-  lgr$info(text, scaleLabels[i], testResults[1], testResults[2], pValue);
+  lgr$info(text);
 }
 rm(scaleLabels, meanItems);
 
-# Test auf Normalverteilung mittes des Shapiro-Wilk-Tests
+newLogSection('Test auf Normalverteilung');
+
+scaleLabels = c('Interaktionsbereitschaft', 'Allophilie');
+meanItems = c(MEAN_INTERAKTIONSBEREITSCHAFT_ITEM, MEAN_ALLOPHILIA_ITEM);
+lgr$info('Test auf Normalverteilung mittels des Tests von Shapiro und Wilk (1965).');
+for(i in 1:length(scaleLabels)) {
+  lgr$info(sprintf('Teste die Skala \"%s\" (Spalte \"%s\"). Die Nullhypothese lautet, dass sich die Verteilung dieser Skala nicht signifikant von der Normalverteilung unterscheidet.',
+                   scaleLabels[i], meanItems[i]));
+  text = 'Für die Skala \"%s\" ist W = %f, p = %f, n = %i.';
+  testGroup = na.omit(dataToAnalyze[meanItems[i]]);
+  testResults = unlist(shapiro.test(unlist(testGroup)));
+  pValue = testResults[2];
+  text = sprintf(text, scaleLabels[i], as.numeric(testResults[1]), as.numeric(pValue), nrow(testGroup));
+  if(pValue < SIGNIFICANCE_LEVEL) {
+    text = paste(text, sprintf('Damit ist die Nullhypothese zum Signifikanzniveau alpha = %.2f abzulehnen und es ist davon auszugehen, dass die Skala \"%s\" nicht normalverteilt ist.',
+                               SIGNIFICANCE_LEVEL, scaleLabels[i]), sep = ' ');
+  } else {
+    text = paste(text, sprintf('Damit ist die Nullhypothese zum Signifikanzniveau alpha = %.2f zu akzeptieren und es ist davon auszugehen, dass die Skala \"%s\" normalverteilt ist.',
+                               SIGNIFICANCE_LEVEL, scaleLabels[i]), sep = ' ');
+  }
+  lgr$info(text);
+}
 
 # Test der Nullhypothese.
 
