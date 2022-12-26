@@ -48,7 +48,7 @@ VALID_VALUES_GRADUATION = c(1, 2, 3, 4, 5, 6, 7, 8, 9);
 VALID_VALUES_INTERAKTIONSBEREITSCHAFT = seq(1, 7, by = 0.5);
 VALID_VALUES_SCREENS = c(1, 2, 3, 4, 5);
 
-# Labels
+# Labels - Reihenfolge der Labels in einem Vektor nicht verändern, da die Werte im Originaldatensatz sonst falsch rekodiert werden!
 LABELS_EXPERIMENTAL_CONDITION = c('Erst positiv, dann negativ', 'Erst negativ, dann positiv');
 LABELS_GENDER = c('weiblich', 'männlich', 'divers', 'weiteres');
 LABELS_GRADUATION = c('Ohne Abschluss', 'Haupt-/Realschulabschluss', 'Fachhochschulreife/allgemeine Hochschulreife', 'Lehre/Berufsausbildung', 'Meister/Techniker', 'Bachelor', 'Master/Diplom', 'Promotion/Habilitation', 'Sonstiges');
@@ -426,7 +426,6 @@ for(i in 1:length(scaleLabels)) {
 rm(scaleLabels, scaleItems);
 
 newLogSection('Test auf Varianzhomogenität');
-
 scaleLabels = c('Interaktionsbereitschaft', 'Allophilie');
 meanItems = c(MEAN_INTERAKTIONSBEREITSCHAFT_ITEM, MEAN_ALLOPHILIA_ITEM);
 lgr$info('Test auf Varianzhomogenität mittels des Tests von Levene (1960).');
@@ -449,28 +448,28 @@ for(i in 1:length(scaleLabels)) {
 rm(scaleLabels, meanItems);
 
 newLogSection('Test auf Normalverteilung');
-
 scaleLabels = c('Interaktionsbereitschaft', 'Allophilie');
 meanItems = c(MEAN_INTERAKTIONSBEREITSCHAFT_ITEM, MEAN_ALLOPHILIA_ITEM);
+experimentalGroups = list(pos_neg_group, neg_pos_group);  # Reihenfolge muss mit der Reihenfolge in LABELS_EXPERIMENTAL_CONDITION übereinstimmen!!
 lgr$info('Test auf Normalverteilung mittels des Tests von Shapiro und Wilk (1965).');
 for(i in 1:length(scaleLabels)) {
-  lgr$info(sprintf('Teste die Skala \"%s\" (Spalte \"%s\"). Die Nullhypothese lautet, dass sich die Verteilung dieser Skala nicht signifikant von der Normalverteilung unterscheidet.',
-                   scaleLabels[i], meanItems[i]));
-  text = 'Für die Skala \"%s\" ist W = %f, p = %f, n = %i.';
-  testGroup = na.omit(dataToAnalyze[meanItems[i]]);
-  testResults = unlist(shapiro.test(unlist(testGroup)));
-  pValue = testResults[2];
-  text = sprintf(text, scaleLabels[i], as.numeric(testResults[1]), as.numeric(pValue), nrow(testGroup));
-  if(pValue < SIGNIFICANCE_LEVEL) {
-    text = paste(text, sprintf('Damit ist die Nullhypothese zum Signifikanzniveau alpha = %.2f abzulehnen und es ist davon auszugehen, dass die Skala \"%s\" nicht normalverteilt ist.',
-                               SIGNIFICANCE_LEVEL, scaleLabels[i]), sep = ' ');
-  } else {
-    text = paste(text, sprintf('Damit ist die Nullhypothese zum Signifikanzniveau alpha = %.2f zu akzeptieren und es ist davon auszugehen, dass die Skala \"%s\" normalverteilt ist.',
-                               SIGNIFICANCE_LEVEL, scaleLabels[i]), sep = ' ');
+  for(j in 1:length(experimentalGroups)) {
+    lgr$info('Teste, ob die Experimentalgruppe \"%s\" auf der Skala \"%s\" (Spalte \"%s\") normalverteilt ist. Die Nullhypothese lautet, dass sich die Verteilung dieser dieser Experimentalgruppe auf dieser Skala nicht signifikant von der Normalverteilung unterscheidet.',
+             LABELS_EXPERIMENTAL_CONDITION[j], scaleLabels[i], meanItems[i]);
+    text = 'Für die Experimentalgruppe \"%s\", Skala \"%s\" ist W = %f, p = %f, n = %i.';
+    testGroup = na.omit(experimentalGroups[[j]][meanItems[i]]);
+    testResults = unlist(shapiro.test(unlist(testGroup)));
+    pValue = testResults[2];
+    text = sprintf(text, LABELS_EXPERIMENTAL_CONDITION[j], scaleLabels[i], as.numeric(testResults[1]), as.numeric(pValue), nrow(testGroup));
+    if(pValue < SIGNIFICANCE_LEVEL) {
+      text = paste(text, sprintf('Damit ist die Nullhypothese zum Signifikanzniveau alpha = %.2f abzulehnen und es ist davon auszugehen, dass die Experimentalgruppe \"%s\" auf der Skala \"%s\" nicht normalverteilt ist.',
+                                 SIGNIFICANCE_LEVEL, LABELS_EXPERIMENTAL_CONDITION[j], scaleLabels[i]), sep = ' ');
+    } else {
+      text = paste(text, sprintf('Damit ist die Nullhypothese zum Signifikanzniveau alpha = %.2f zu akzeptieren und es ist davon auszugehen, dass die Experimentalgruppe \"%s\" auf der Skala \"%s\" normalverteilt ist.',
+                                 SIGNIFICANCE_LEVEL, LABELS_EXPERIMENTAL_CONDITION[j], scaleLabels[i]), sep = ' ');
+    }
+    lgr$info(text);
   }
-  lgr$info(text);
 }
-
-# Test der Nullhypothese.
 
 print('Skript wurde erfolgreich ausgeführt.');
