@@ -126,7 +126,7 @@ deleteRows = function(rawData) {
   countParticipantsWithImpairedVision = 0;
   countParticipantsWhoStudyPsychologyAtFUHagen = 0;
   
-  newLogSection('Items löschen');
+  newLogSection('Teilnehmer-Datensätze löschen');
   lgr$warn('Achtung: Es kann sein, dass ein Teilnehmer mehr als nur ein Ausschluss-Kriterium erfüllt. Die Anzahl der Teilnehmer, die aus einem bestimmten Grund ausgeschlossen werden, kann folglich von der Reihenfolge abhängen, in der die Datensätze gelöscht worden sind. Die Zahl der Datensätze, die in jedem Arbeitsschritt gelöscht werden, bezieht sich daher auf die zu diesem Punkt verbliebenen Datensätze, nicht auf die ursprünglich vorhandenen.');
   
   nonSeriousParticipations = nrow(rawData[rawData[SERIOUS_PARTICIPATION_ITEM] != SERIOUS_PARTICIPATION_VALUE,]);
