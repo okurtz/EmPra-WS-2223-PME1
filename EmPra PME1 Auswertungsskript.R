@@ -12,8 +12,8 @@ REMOVE_OUTLIERS = TRUE;                           # TRUE: Ausreißer werden ermi
 
 # Technische Einstellungen
 PROCESSED_DATA_FILE_NAME = paste(unlist(strsplit(SOURCE_FILE_NAME, '\\.'))[1], '.RDS', sep='');
-VERSION_NUMBER = 'v0.0.5';
-VERSION_DATE = '27. Dezember 2022';
+VERSION_NUMBER = 'v0.0.6';
+VERSION_DATE = '28. Dezember 2022';
 
 # Item-Aliase
 AFFECTION_ITEMS = c('v_52', 'v_53', 'v_54');
@@ -516,7 +516,7 @@ for(i in 1:length(scaleLabels)) {
 rm(scaleLabels, meanItems, experimentalGroups, pValue, testGroup, testResults, text, i, j);
 
 newLogSection('Hypothesen testen');
-lgr$info('Die Mittelwerte der Skalen \"Allophilie\" und \"Interaktionsbereitschaft\" weichen in ihrer Verteilung nicht signifikant von der Normalverteilung ab. Weiterhin sind ihre Varianzen über die Experimentalbedingungen hinweg nicht signifikant heterogen. Damit sind die Voraussetzungen für einen t-Test für zwei unabhängige Stichproben erfüllt.\n');
+lgr$info('Wenn die Annahme der Normalverteilung verletzt ist, so ist dies nach gängiger Meinung kein Hinderungsgrund, dennoch einen t-Test zu verwenden, da dieser robust reagiert (siehe auch hier: https://statistikguru.de/spss/ungepaarter-t-test/normalverteilung-verletzt-4.html).\n');
 lgr$info('Teste Hypothese 1: Die Teilnehmer der Experimentalgruppe \"Erst negativ, dann positiv\" zeigen weniger Allophilie als die Teilnehmer der Experimentalgruppe \"Erst positiv, dann negativ\". Die Nullhypothese lautet, dass kein Unterschied vorliegt.');
 testGroup = na.omit(dataToAnalyze[c(MEAN_ALLOPHILIA_ITEM, EXPERIMENTAL_CONDITION_ITEM)]);
 testGroup[EXPERIMENTAL_CONDITION_ITEM] = as.integer(testGroup[,EXPERIMENTAL_CONDITION_ITEM]);
