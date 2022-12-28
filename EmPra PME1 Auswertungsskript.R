@@ -343,8 +343,9 @@ removeOutliers = function(rawData, sds = 2) {
 calculateScaleMeans = function(rawData) {
   
   calculateScaleMeansInternal = function(rawData, scaleNames, scaleItems, meanItemNames) {
+    rowMean = 0;
     for(i in 1:length(scaleNames)) {
-      rawData[meanItemNames[i]] = rowMeans(rawData[scaleItems[[i]]]);
+      rawData[meanItemNames[i]] = rowMeans(rawData[scaleItems[[i]]], na.rm = TRUE) %>% replace(., is.nan(.), NA);
       lgr$info('Füge eine neue Spalte \"%s\" ein, die die Mittelwerte der Skala \"%s" enthält.', meanItemNames[i], scaleNames[i]);
     }
     return(rawData);
