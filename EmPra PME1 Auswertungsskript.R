@@ -205,6 +205,7 @@ deleteColumns = function(rawData) {
   rawData[c('v_140', 'v_141', 'v_142', 'v_143', 'v_144', 'v_145', 'v_146', 'v_147', 'v_148', 'v_149', 'v_150', 'v_151')] = list(NULL);
   
   lgr$info('Der Datensatz enthält jetzt nur noch Daten von Teilnehmer, die der Teilnahme an der Studie zugestimmt haben. Lösche die Spalte mit der Teilnahmeerklärung (Item %s), da sie nun überflüssig ist.', STUDY_PARTICIPATION_AGREEMENT_ITEM)
+  rawData[STUDY_PARTICIPATION_AGREEMENT_ITEM] = NULL;
   
   lgr$info('Der Datensatz enthält jetzt nur noch Daten von Teilnehmern, die mit der Verarbeitung ihrer Daten einverstanden sind. Lösche die Spalte mit der Einverständniserklärung zur Datenverarbeitung (Item %s), da sie nun überflüssig ist.', DATA_USAGE_AGREEMENT_ITEM);
   rawData[DATA_USAGE_AGREEMENT_ITEM] = NULL;
