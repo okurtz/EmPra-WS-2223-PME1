@@ -339,7 +339,7 @@ calculateScaleMeans = function(rawData) {
   
   calculateScaleMeansInternal = function(rawData, scaleNames, scaleItems, meanItemNames) {
     for(i in 1:length(scaleNames)) {
-      rawData[meanItemNames[i]] = rowMeans(rawData[scaleItems[[i]]], na.rm = TRUE);
+      rawData[meanItemNames[i]] = rowMeans(rawData[scaleItems[[i]]]);
       lgr$info('Füge eine neue Spalte \"%s\" ein, die die Mittelwerte der Skala \"%s" enthält.', meanItemNames[i], scaleNames[i]);
     }
     return(rawData);
