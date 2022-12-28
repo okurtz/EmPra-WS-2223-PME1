@@ -17,18 +17,22 @@ VERSION_DATE = '27. Dezember 2022';
 
 # Item-Aliase
 AFFECTION_ITEMS = c('v_52', 'v_53', 'v_54');
-ALLOPHILIA_SORT_ORDER_CHEAT_NAME = 'v_57_2';  # Der Spaltenname sorgt dafür, dass die Spalte nach dem Sortieren an der gewünschten Position landet.
+AFFECTION_SORT_ORDER_CHEAT_NAME = 'v_54_2';
+ALLOPHILIA_SORT_ORDER_CHEAT_NAME = 'v_57_3';  # Der Spaltenname sorgt dafür, dass die Spalte nach dem Sortieren an der gewünschten Position landet.
 INTERAKTIONSBEREITSCHAFT_SORT_ORDER_CHEAT_NAME = 'v_51_2';
 DATA_USAGE_AGREEMENT_ITEM = 'v_8';
 DO_YOU_STUDY_ITEM = 'v_108';
 ENTHUSIASM_ITEMS = c('v_55', 'v_56', 'v_57');
+ENTHUSIASM_SORT_ORDER_CHEAT_NAME = 'v_57_2'
 ALLOPHILIA_ITEMS = c(AFFECTION_ITEMS, ENTHUSIASM_ITEMS);
 EXPERIMENTAL_CONDITION_ITEM = 'c_0001';
 GENDER_ITEM = 'v_9';
 GRADUATION_ITEM = 'v_10510';
 IMPAIRED_VISION_ITEM = 'v_110';
 INTERAKTIONSBEREITSCHAFT_ITEMS = c('v_46', 'v_47', 'v_48', 'v_49', 'v_50', 'v_51');
+MEAN_AFFECTION_ITEM = 'M_Positive_Affekte';
 MEAN_ALLOPHILIA_ITEM = 'M_Allophilie';
+MEAN_ENTHUSIASM_ITEM = 'M_Enthusiasmus';
 MEAN_INTERAKTIONSBEREITSCHAFT_ITEM = 'M_Interaktionsbereitschaft';
 ROW_ID = 'lfdn';
 SCREEN_ITEM = 'v_107';
@@ -58,6 +62,10 @@ LABELS_SCREENS = c('Smartphone', 'Tablet', 'Laptop', 'Externer Bildschirm', 'Son
 # Teilnehmer-Datensätze mit fehlenden/ungültigen Werten in der Allophilie-Skala
 INVALID_DATASETS_AFFECTION = mapply(list, c(504, 501, 402, 231), c('v_52', 'v_53', 'v_53', 'v_54'));
 INVALID_DATASETS_ENTHUSIASM = mapply(list, c(257, 297, 504), c('v_55', 'v_55', 'v_56'));
+
+# Zu rekodierende Items
+ITEMS_TO_RECODE = c('v_49', 'v_50', 'v_51');
+RECODE_KEY = '1=7; 2=6; 3=5; 4=4; 5=4; 6=2; 7=1';
 
 # Einstellungen für inferenzstatistische Tests
 SIGNIFICANCE_LEVEL = 0.05;
@@ -215,8 +223,19 @@ deleteColumns = function(rawData) {
   return(rawData);
 }
 
+recodeDataset = function(rawData) {
+  newLogSection('Items rekodieren');
+  
+  lgr$info('Die Items %s sind invers gepolt, d.h. ein hoher Wert gibt keine hohe, sondern eine niedrige Ausprägung an. Kehre die Polung um (%s).', toString(ITEMS_TO_RECODE), RECODE_KEY);
+  for(i in 1:length(ITEMS_TO_RECODE)) {
+    rawData[,ITEMS_TO_RECODE[i]] = car::recode(rawData[,ITEMS_TO_RECODE[i]], RECODE_KEY);
+  }
+  
+  return(rawData);
+}
+
 factorizeDataset = function(rawData) {
-  newLogSection('Faktorisieren')
+  newLogSection('Items faktorisieren')
   
   lgr$info('Faktorisiere die Versuchsbedingung.');
   rawData[,EXPERIMENTAL_CONDITION_ITEM] = factor(rawData[,EXPERIMENTAL_CONDITION_ITEM], levels = VALID_VALUES_EXPERIMENTAL_CONDITION, labels = LABELS_EXPERIMENTAL_CONDITION, exclude = NULL);
@@ -246,17 +265,18 @@ removeOutliers = function(rawData, sds = 2) {
   
   removeOutliersInternal = function(scaleName, scaleItems) {
     means = c();
-    outlierTable = 0;
+    outlierTable = list();
     scaleMean = 0;
     scaleSD = 0;
     upperThreshold = 0;
     lowerThreshold = 0;
+    outliersInternal = data.frame();
     additionalOutlierData = data.frame(matrix(ncol = length(additionalOutlierItems), nrow = 0)) %>% mutate(ROW_ID = as.character(ROW_ID), .);
     
     lgr$info('Bereinige Skala \"%s\".', scaleName);
     means = rowMeans(rawData[scaleItems]);
-    scaleMean = mean(means);
-    scaleSD = sd(means);
+    scaleMean = mean(unlist(means));
+    scaleSD = sd(unlist(means));
     upperThreshold = scaleMean + sds*scaleSD;
     lowerThreshold = scaleMean - sds*scaleSD;
     lgr$info('Vor der Beseitigung der Ausreißer sind M = %.4f und SD = %.4f.', scaleMean, scaleSD);
@@ -272,10 +292,10 @@ removeOutliers = function(rawData, sds = 2) {
       colnames(additionalOutlierData) = additionalOutlierItems;
       outliersInternal = merge(outliersInternal, additionalOutlierData, by = ROW_ID);
       for(i in 1:nrow(outliersInternal)) {
-        rawData[rawData[ROW_ID] == outliersInternal[i,ROW_ID],][scaleItems] <<- NA;
+        rawData[rawData[ROW_ID] == outliersInternal[i,ROW_ID],scaleItems] <<- NA;
       }
       means = rowMeans(rawData[scaleItems]);
-      lgr$info('Nach der Beseitigung der Ausreißer sind M = %.4f und SD = %.4f.', mean(means, na.rm = TRUE), sd(means, na.rm = TRUE));
+      lgr$info('Nach der Beseitigung der Ausreißer auf der Skala \"%s\"sind M = %.4f und SD = %.4f.', scaleName, mean(means, na.rm = TRUE), sd(means, na.rm = TRUE));
     }
     return(outliersInternal);
   }
@@ -301,13 +321,13 @@ removeOutliers = function(rawData, sds = 2) {
     lgr$info('Kein Teilnehmer wird in genau zwei Skalen als Ausreißer gewertet.');
   } else {
     lgr$info('%i Teilnehmer werden in genau zwei von drei Skalen als Ausreißer gewertet. Es handelt sich um die Teilnehmer mit folgenden Nummern: %s.',
-             doubleOutlier, toString(rownames(outlierTable[outlierTable == 2]), sep = ','));
+             doubleOutlier, toString(rownames(outlierTable[outlierTable == 2])));
   }
   if(tripleOutlier == 0) {
     lgr$info('Kein Teilnehmer wird in allen drei Skalen als Ausreißer gewertet.');
   } else {
     lgr$info('%i Teilnehmer werden in allen drei Skalen als Ausreißer gewertet. Es handelt sich um die Teilnehmer mit folgenden Nummern: %s.',
-             doubleOutlier, toString(rownames(outlierTable[outlierTable == 3]), sep = ','));
+             doubleOutlier, toString(rownames(outlierTable[outlierTable == 3])));
   }
   unlink(OUTLIER_DUMP_PATH);
   write.csv(outliers, OUTLIER_DUMP_PATH, row.names = FALSE);
@@ -316,27 +336,37 @@ removeOutliers = function(rawData, sds = 2) {
 }
 
 calculateScaleMeans = function(rawData) {
-  affectionMeans = c();
-  enthusiasmMeans = c();
-  allophiliaMeans = c();
-  interaktionsbereitschaftMeans = c();
+  
+  calculateScaleMeansInternal = function(rawData, scaleNames, scaleItems, meanItemNames) {
+    for(i in 1:length(scaleNames)) {
+      rawData[meanItemNames[i]] = rowMeans(rawData[scaleItems[[i]]], na.rm = TRUE);
+      lgr$info('Füge eine neue Spalte \"%s\" ein, die die Mittelwerte der Skala \"%s" enthält.', meanItemNames[i], scaleNames[i]);
+    }
+    return(rawData);
+  }
   
   newLogSection('Daten aggregieren');
   
-  affectionMeans = rowMeans(rawData[AFFECTION_ITEMS]);
-  enthusiasmMeans = rowMeans(rawData[ENTHUSIASM_ITEMS]);
-  allophiliaMeans = rowMeans(data.frame(affectionMeans, enthusiasmMeans), na.rm = TRUE);
-  interaktionsbereitschaftMeans = rowMeans(rawData[INTERAKTIONSBEREITSCHAFT_ITEMS], na.rm = TRUE);
-  rawData[ALLOPHILIA_SORT_ORDER_CHEAT_NAME] = allophiliaMeans;
-  rawData[INTERAKTIONSBEREITSCHAFT_SORT_ORDER_CHEAT_NAME] = interaktionsbereitschaftMeans;
-  
-  lgr$info('Die Teilnehmer-Datensätze haben nun eine neue Spalte \"%s\", die die Mittelwerte beider Allophilie-Subskalen enthält.', MEAN_ALLOPHILIA_ITEM);
-  lgr$info('%i Teilnehmer haben auf beiden Skalen nur \"NA\"-Werte, z.B. weil sie zuvor als Ausreißer erkannt und gelöscht worden sind. Diese Teilnehmer haben auch in der Spalte \"%s\" den Wert \"NA\".',
+  rawData = calculateScaleMeansInternal(
+    rawData,
+    c('Allophilie - Positive Affekte', 'Allophilie - Enthusiasmus', 'Allophilie - Gesamt', 'Interaktionsbereitschaft'),
+    list(AFFECTION_ITEMS, ENTHUSIASM_ITEMS, ALLOPHILIA_ITEMS, INTERAKTIONSBEREITSCHAFT_ITEMS),
+    c(AFFECTION_SORT_ORDER_CHEAT_NAME, ENTHUSIASM_SORT_ORDER_CHEAT_NAME, ALLOPHILIA_SORT_ORDER_CHEAT_NAME, INTERAKTIONSBEREITSCHAFT_SORT_ORDER_CHEAT_NAME)
+  );
+  lgr$info('Diese Spalten werden im Laufe der weiteren Verarbeitung sprechende Namen erhalten.');
+  lgr$info('%i Teilnehmer haben auf beiden Subskalen von Allophilie nur \"NA\"-Werte, z.B. weil sie zuvor als Ausreißer erkannt und gelöscht worden sind. Diese Teilnehmer haben auch in der Spalte \"%s\" den Wert \"NA\".',
            sum(is.na(rawData[ALLOPHILIA_SORT_ORDER_CHEAT_NAME])), MEAN_ALLOPHILIA_ITEM);
-  lgr$info('Die Teilnehmer-Datensätze haben nun eine neue Spalte \"%s\", die die Mittelwerte der Interaktionsbereitschaft-Skala enthält', MEAN_INTERAKTIONSBEREITSCHAFT_ITEM);
   lgr$info('%i Teilnehmer haben auf der Interaktionsbereitschaft-Skala nur \"NA\"-Werte, z.B. weil sie zuvor als Ausreißer erkannt und gelöscht worden sind. Diese Teilnehmer haben auch in der Spalte \"%s\" den Wert \"NA\".',
            sum(is.na(rawData[INTERAKTIONSBEREITSCHAFT_SORT_ORDER_CHEAT_NAME])), MEAN_INTERAKTIONSBEREITSCHAFT_ITEM);
   
+  return(rawData);
+}
+
+removeColumnCheatNames = function(rawData, columnCheatNames, actualNames) {
+  for(i in 1:length(columnCheatNames)) {
+    names(rawData)[names(rawData) == columnCheatNames[i]] = actualNames[i];
+    lgr$info('Spalte \"%s\" heißt jetzt \"%s\".', columnCheatNames[i], actualNames[i]);
+  }
   return(rawData);
 }
 
@@ -355,8 +385,11 @@ preprocessData = function(fileName) {
   newLogSection('Technischer Abschluss der Vorverarbeitung');
   lgr$info('Sortiere alle Spalten ab der sechsten.');
   rawData = rawData[,c(colnames(rawData[1:5]), str_sort(colnames(rawData)[6:ncol(rawData)], numeric = TRUE))];
-  names(rawData)[names(rawData) == ALLOPHILIA_SORT_ORDER_CHEAT_NAME] = MEAN_ALLOPHILIA_ITEM;
-  names(rawData)[names(rawData) == INTERAKTIONSBEREITSCHAFT_SORT_ORDER_CHEAT_NAME] = MEAN_INTERAKTIONSBEREITSCHAFT_ITEM;
+  rawData = removeColumnCheatNames(
+    rawData,
+    c(AFFECTION_SORT_ORDER_CHEAT_NAME, ENTHUSIASM_SORT_ORDER_CHEAT_NAME, ALLOPHILIA_SORT_ORDER_CHEAT_NAME, INTERAKTIONSBEREITSCHAFT_SORT_ORDER_CHEAT_NAME),
+    c(MEAN_AFFECTION_ITEM, MEAN_ENTHUSIASM_ITEM, MEAN_ALLOPHILIA_ITEM, MEAN_INTERAKTIONSBEREITSCHAFT_ITEM)
+  );
   lgr$info('Vorverarbeitung der Rohdaten abgeschlossen. Speichere die vorverarbeiteten Daten in der Datei \"%s\".', PROCESSED_DATA_FILE_NAME);
   saveRDS(rawData, file = paste(getwd(), PROCESSED_DATA_FILE_NAME, sep='/'));
 }
@@ -435,7 +468,7 @@ rm(scaleLabels, scaleItems, i);
 newLogSection('Test auf Varianzhomogenität');
 scaleLabels = c('Interaktionsbereitschaft', 'Allophilie');
 meanItems = c(MEAN_INTERAKTIONSBEREITSCHAFT_ITEM, MEAN_ALLOPHILIA_ITEM);
-lgr$info('Test auf Varianzhomogenität mittels des Tests von Levene (1960). Die Nullhypothese lautet, dass sich die Varianz der Skalen %s zwischen den beiden Experimentalbedingungen nicht signifikant unterscheidet.', toString(scaleLabels, sep = ','));
+lgr$info('Test auf Varianzhomogenität mittels des Tests von Levene (1960). Die Nullhypothese lautet, dass sich die Varianz der Skalen %s zwischen den beiden Experimentalbedingungen nicht signifikant unterscheidet.', toString(scaleLabels));
 for(i in 1:length(scaleLabels)) {
   lgr$info('Teste die Skala \"%s\".', scaleLabels[i]);
   text = 'Für die Skala \"%s\" ist F(%i,%i) = %.4f, p = %f, n = %i.';
