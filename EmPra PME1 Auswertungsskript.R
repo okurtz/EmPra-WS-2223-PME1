@@ -350,7 +350,7 @@ preprocessData = function(fileName) {
   rawData = rawData[,c(colnames(rawData[1:5]), str_sort(colnames(rawData)[6:ncol(rawData)], numeric = TRUE))];
   names(rawData)[names(rawData) == ALLOPHILIA_SORT_ORDER_CHEAT_NAME] = MEAN_ALLOPHILIA_ITEM;
   names(rawData)[names(rawData) == INTERAKTIONSBEREITSCHAFT_SORT_ORDER_CHEAT_NAME] = MEAN_INTERAKTIONSBEREITSCHAFT_ITEM;
-  lgr$info('Vorverarbeitung der Rohdaten abgeschlossen. Speichere die vorverarbeiteten Daten in der Datei \"%s.\"', PROCESSED_DATA_FILE_NAME);
+  lgr$info('Vorverarbeitung der Rohdaten abgeschlossen. Speichere die vorverarbeiteten Daten in der Datei \"%s\".', PROCESSED_DATA_FILE_NAME);
   saveRDS(rawData, file = paste(getwd(), PROCESSED_DATA_FILE_NAME, sep='/'));
 }
 
@@ -366,7 +366,7 @@ lgr$config(list(
 newLogSection(sprintf('Datenaufbereitungsskript EmPra WS 22/23 Gruppe 1, %s, %s', VERSION_NUMBER, VERSION_DATE), FALSE);
 
 if(!file.exists(PROCESSED_DATA_FILE_NAME)) {
-  lgr$info('Konnte die Datei %s nicht finden. Greife auf die Originaldaten zurück.', PROCESSED_DATA_FILE_NAME);
+  lgr$info('Konnte die Datei \"%s\" nicht finden. Greife auf die Originaldaten zurück.', PROCESSED_DATA_FILE_NAME);
   preprocessData(SOURCE_FILE_NAME);
 } else {
   lgr$info('Habe Datei \"%s\" gefunden und verwende sie nun. Um die Bereinigung der Originaldaten neu auszulösen und die Verarbeitungsschritte im Log auszugeben, bitte die Datei \"%s\" löschen und das Skript neu starten.',
