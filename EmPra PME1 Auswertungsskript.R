@@ -8,6 +8,7 @@ library(stringr);
 SOURCE_FILE_NAME = 'EmPraWS2223_final.csv';       # Pfad zur Datei, die die Rohdaten enthält
 LOG_PATH = 'Log Datenverarbeitung.log';           # Pfad zur Datei, in die das Log geschrieben werden soll
 OUTLIER_DUMP_PATH = 'Beseitigte Ausreißer.csv';   # Pfad zur Datei, in die die Ausreißer geschrieben werden sollen
+REMOVE_OUTLIERS = TRUE;                           # TRUE: Ausreißer werden ermittelt und auf NA gesetzt. FALSE: Ausreißer werden nicht behandelt.
 
 # Technische Einstellungen
 PROCESSED_DATA_FILE_NAME = paste(unlist(strsplit(SOURCE_FILE_NAME, '\\.'))[1], '.RDS', sep='');
@@ -96,6 +97,11 @@ replaceInvalidValues = function(rawData) {
   }
   
   newLogSection('Behandlung von fehlenden oder ungültigen Werten');
+  
+  lgr$info('Ersetze alle Vorkommen von %s durch NA.', toString(unlist(INVALID_ANSWER_VALUES)));
+  rawData = data.frame(lapply(rawData, function(col){
+    replace(col, col %in% INVALID_ANSWER_VALUES, NA);
+  }));
   
   rawData = iterateItemList(rawData, INVALID_DATASETS_AFFECTION, AFFECTION_ITEMS);
   rawData = iterateItemList(rawData, INVALID_DATASETS_ENTHUSIASM, ENTHUSIASM_ITEMS);
@@ -209,27 +215,22 @@ deleteColumns = function(rawData) {
   return(rawData);
 }
 
-recodeDataset = function(rawData) {
-  newLogSection('Rekodieren')
+factorizeDataset = function(rawData) {
+  newLogSection('Faktorisieren')
   
-  lgr$info('Ersetze alle Vorkommen von %s durch NA.', toString(unlist(INVALID_ANSWER_VALUES)));
-  rawData = data.frame(lapply(rawData, function(col){
-    replace(col, col %in% INVALID_ANSWER_VALUES, NA);
-  }));
-  
-  lgr$info('Rekodiere die Versuchsbedingung.');
+  lgr$info('Faktorisiere die Versuchsbedingung.');
   rawData[,EXPERIMENTAL_CONDITION_ITEM] = factor(rawData[,EXPERIMENTAL_CONDITION_ITEM], levels = VALID_VALUES_EXPERIMENTAL_CONDITION, labels = LABELS_EXPERIMENTAL_CONDITION, exclude = NULL);
   
-  lgr$info('Rekodiere das Geschlecht.');
+  lgr$info('Faktorisiere das Geschlecht.');
   rawData[,GENDER_ITEM] = factor(rawData[,GENDER_ITEM], levels = VALID_VALUES_GENDER, labels = LABELS_GENDER, exclude = NULL);
   
-  lgr$info('Rekodiere den Bildungsabschluss.');
+  lgr$info('Faktorisiere den Bildungsabschluss.');
   rawData[,GRADUATION_ITEM] = addNA(factor(rawData[,GRADUATION_ITEM], levels = VALID_VALUES_GRADUATION, labels = LABELS_GRADUATION, exclude = NULL));
   
-  lgr$info('Rekodiere den verwendeten Bildschirm.');
+  lgr$info('Faktorisiere den verwendeten Bildschirm.');
   rawData[,SCREEN_ITEM] = factor(rawData[,SCREEN_ITEM], levels = VALID_VALUES_SCREENS, labels = LABELS_SCREENS, exclude = NULL);
   
-  lgr$info('Rekodieren abgeschlossen. Die rekodierten Spalten können nun nicht mehr über die numerischen Werte im Codebuch gefiltert werden, sondern nur noch über die Faktorwerte, also bspw. \"daten[daten[\"v_107\"] == \"Smartphone\",]\" anstatt \"daten[daten[\"v_107\"] == 1,]\". Faktorskalen können mit dem Befehl \"as.integer()\" wieder in ihre ursprüngliche numerische Darstellung überführt werden.');
+  lgr$info('Faktorisieren abgeschlossen. Die faktorisierten Spalten können nun nicht mehr über die numerischen Werte im Codebuch gefiltert werden, sondern nur noch über die Faktorwerte, also bspw. \"daten[daten[\"v_107\"] == \"Smartphone\",]\" anstatt \"daten[daten[\"v_107\"] == 1,]\". Faktorskalen können mit dem Befehl \"as.integer()\" wieder in ihre ursprüngliche numerische Darstellung überführt werden.');
   
   return(rawData);
 }
@@ -282,6 +283,11 @@ removeOutliers = function(rawData, sds = 2) {
   colnames(outliers) = c(additionalOutlierItems, outlierItems);
 
   newLogSection('Ausreißer entfernen');
+  if(!REMOVE_OUTLIERS) {
+    lgr$info('Die Behandlung von Ausreißern wurde deaktiviert. Ausreißer werden weder ermittelt noch entfernt.');
+    return(rawData);
+  }
+  
   lgr$info('Achtung: \"Entfernen\" von Ausreißern bedeutet, dass Ausreißer-Antworten auf \"NA\" gesetzt werden. Es wird nicht der gesamte Datensatz gelöscht.');
   outliers = (bind_rows(removeOutliersInternal('Positive Affekte', AFFECTION_ITEMS)) %>%
              bind_rows(removeOutliersInternal('Enthusiasmus', ENTHUSIASM_ITEMS)) %>%
@@ -342,6 +348,7 @@ preprocessData = function(fileName) {
   rawData = replaceInvalidValues(rawData)
   rawData = deleteColumns(rawData);
   rawData = recodeDataset(rawData);
+  rawData = factorizeDataset(rawData);
   rawData = removeOutliers(rawData);
   rawData = calculateScaleMeans(rawData);
   
@@ -488,4 +495,5 @@ testResults = unlist(t.test(testGroup[,MEAN_INTERAKTIONSBEREITSCHAFT_ITEM] ~ tes
 lgr$info('Die Experimentalgruppe \"Erst negativ, dann positiv\" zeigt nicht signifikant mehr Interaktionsbereitschaft als die Teilnehmer der Experimentalgruppe \"Erst positiv, dann negativ\" (t(%i) = %.4f, p = %.4f). Damit ist die Nullhypothese zu akzeptieren.',
          as.numeric(testResults[2]), as.numeric(testResults[1]), as.numeric(testResults[3]));
 lgr$info('\nThat\'s all Folks! *Looney Tunes-Musik*');
+
 print('Skript wurde erfolgreich ausgeführt.');
