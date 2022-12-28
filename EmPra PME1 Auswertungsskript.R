@@ -257,8 +257,6 @@ factorizeDataset = function(rawData) {
 removeOutliers = function(rawData, sds = 2) {
   CUTOFF_MAX = sprintf('M_Skala + %i*SD', sds);
   CUTOFF_MIN = sprintf('M_Skala - %i*SD', sds);
-  doubleOutlier = 0;
-  tripleOutlier = 0;
   outlierItems = c(INTERAKTIONSBEREITSCHAFT_ITEMS, AFFECTION_ITEMS, ENTHUSIASM_ITEMS);
   additionalOutlierItems = c(ROW_ID, 'Skala', 'M_Skala', 'M_Teilnehmer', CUTOFF_MIN, CUTOFF_MAX);
   outliers = data.frame(matrix(ncol = length(additionalOutlierItems) + length(outlierItems)), nrow = 0) %>% mutate(ROW_ID = as.character(ROW_ID), .);
@@ -295,8 +293,9 @@ removeOutliers = function(rawData, sds = 2) {
         rawData[rawData[ROW_ID] == outliersInternal[i,ROW_ID],scaleItems] <<- NA;
       }
       means = rowMeans(rawData[scaleItems]);
-      lgr$info('Nach der Beseitigung der Ausreißer auf der Skala \"%s\"sind M = %.4f und SD = %.4f.', scaleName, mean(means, na.rm = TRUE), sd(means, na.rm = TRUE));
+      lgr$info('Nach der Beseitigung der Ausreißer auf der Skala \"%s\" sind M = %.4f und SD = %.4f.', scaleName, mean(means, na.rm = TRUE), sd(means, na.rm = TRUE));
     }
+    lgr$info('');   # Zeilenumbruch
     return(outliersInternal);
   }
   
@@ -308,26 +307,30 @@ removeOutliers = function(rawData, sds = 2) {
     return(rawData);
   }
   
-  lgr$info('Achtung: \"Entfernen\" von Ausreißern bedeutet, dass Ausreißer-Antworten auf \"NA\" gesetzt werden. Es wird nicht der gesamte Datensatz gelöscht.');
+  lgr$info('Achtung: \"Entfernen\" von Ausreißern bedeutet zunächst nur, dass Ausreißer-Antworten auf \"NA\" gesetzt werden. Es wird nicht sofort der gesamte Datensatz gelöscht.\n');
   outliers = (bind_rows(removeOutliersInternal('Positive Affekte', AFFECTION_ITEMS)) %>%
              bind_rows(removeOutliersInternal('Enthusiasmus', ENTHUSIASM_ITEMS)) %>%
              bind_rows(removeOutliersInternal('Interaktionsbereitschaft', INTERAKTIONSBEREITSCHAFT_ITEMS), .))[, c(additionalOutlierItems, outlierItems)];
 
   lgr$info('Entfernen von Ausreißern abgeschlossen. Es wurden bei insgesamt %i Teilnehmern Ausreißer erkannt.', nrow(outliers));  
   outlierTable = table(outliers[ROW_ID]);
-  doubleOutlier = length(outlierTable[outlierTable == 2]);
-  tripleOutlier = length(outlierTable[outlierTable == 3]);
-  if(doubleOutlier == 0) {
+  doubleOutliers = outlierTable[outlierTable == 2];
+  tripleOutliers = outlierTable[outlierTable == 3];
+  if(length(doubleOutliers) == 0) {
     lgr$info('Kein Teilnehmer wird in genau zwei Skalen als Ausreißer gewertet.');
   } else {
     lgr$info('%i Teilnehmer werden in genau zwei von drei Skalen als Ausreißer gewertet. Es handelt sich um die Teilnehmer mit folgenden Nummern: %s.',
-             doubleOutlier, toString(rownames(outlierTable[outlierTable == 2])));
+             length(doubleOutliers), toString(rownames(doubleOutliers)));
   }
-  if(tripleOutlier == 0) {
+  if(length(tripleOutliers) == 0) {
     lgr$info('Kein Teilnehmer wird in allen drei Skalen als Ausreißer gewertet.');
   } else {
     lgr$info('%i Teilnehmer werden in allen drei Skalen als Ausreißer gewertet. Es handelt sich um die Teilnehmer mit folgenden Nummern: %s.',
-             doubleOutlier, toString(rownames(outlierTable[outlierTable == 3])));
+             length(tripleOutliers), toString(rownames(tripleOutliers)));
+    lgr$info('Teilnehmer-Datensätze, deren Antworten auf allen drei Skalen als Ausreißer gelten, sind empirisch wertlos. Lösche die betroffenen Datensätze vollständig.');
+    for(i in 1:length(tripleOutliers)) {
+      rawData = rawData[rawData[ROW_ID] != rownames(tripleOutliers)[i],];
+    }
   }
   unlink(OUTLIER_DUMP_PATH);
   write.csv(outliers, OUTLIER_DUMP_PATH, row.names = FALSE);
@@ -470,7 +473,7 @@ scaleLabels = c('Interaktionsbereitschaft', 'Allophilie');
 meanItems = c(MEAN_INTERAKTIONSBEREITSCHAFT_ITEM, MEAN_ALLOPHILIA_ITEM);
 lgr$info('Test auf Varianzhomogenität mittels des Tests von Levene (1960). Die Nullhypothese lautet, dass sich die Varianz der Skalen %s zwischen den beiden Experimentalbedingungen nicht signifikant unterscheidet.', toString(scaleLabels));
 for(i in 1:length(scaleLabels)) {
-  lgr$info('Teste die Skala \"%s\".', scaleLabels[i]);
+  lgr$info('\nTeste die Skala \"%s\".', scaleLabels[i]);
   text = 'Für die Skala \"%s\" ist F(%i,%i) = %.4f, p = %f, n = %i.';
   testGroup = na.omit(dataToAnalyze[c(meanItems[i], EXPERIMENTAL_CONDITION_ITEM)]);
   testResults = unlist(leveneTest(testGroup[,meanItems[i]], testGroup[,EXPERIMENTAL_CONDITION_ITEM]));
@@ -494,7 +497,7 @@ experimentalGroups = list(pos_neg_group, neg_pos_group);  # Reihenfolge muss mit
 lgr$info('Test auf Normalverteilung mittels des Tests von Shapiro und Wilk (1965). Die Nullhypothese lautet, dass sich die Verteilung der Experimentalgruppen auf den Skalen \"%s\" nicht signifikant von der Normalverteilung unterscheidet.', toString(scaleLabels, sep = ','));
 for(i in 1:length(scaleLabels)) {
   for(j in 1:length(experimentalGroups)) {
-    lgr$info('Teste, ob die Experimentalgruppe \"%s\" auf der Skala \"%s\" (Spalte \"%s\") normalverteilt ist.', LABELS_EXPERIMENTAL_CONDITION[j], scaleLabels[i], meanItems[i]);
+    lgr$info('\nTeste, ob die Experimentalgruppe \"%s\" auf der Skala \"%s\" (Spalte \"%s\") normalverteilt ist.', LABELS_EXPERIMENTAL_CONDITION[j], scaleLabels[i], meanItems[i]);
     text = 'Für die Experimentalgruppe \"%s\", Skala \"%s\" ist W = %f, p = %f, n = %i.';
     testGroup = na.omit(experimentalGroups[[j]][meanItems[i]]);
     testResults = unlist(shapiro.test(unlist(testGroup)));
@@ -513,20 +516,20 @@ for(i in 1:length(scaleLabels)) {
 rm(scaleLabels, meanItems, experimentalGroups, pValue, testGroup, testResults, text, i, j);
 
 newLogSection('Hypothesen testen');
-lgr$info('Die Mittelwerte der Skalen \"Allophilie\" und \"Interaktionsbereitschaft\" weichen in ihrer Verteilung nicht signifikant von der Normalverteilung ab. Weiterhin sind ihre Varianzen über die Experimentalbedingungen hinweg nicht signifikant heterogen. Damit sind die Voraussetzungen für einen t-Test für zwei unabhängige Stichproben erfüllt.');
+lgr$info('Die Mittelwerte der Skalen \"Allophilie\" und \"Interaktionsbereitschaft\" weichen in ihrer Verteilung nicht signifikant von der Normalverteilung ab. Weiterhin sind ihre Varianzen über die Experimentalbedingungen hinweg nicht signifikant heterogen. Damit sind die Voraussetzungen für einen t-Test für zwei unabhängige Stichproben erfüllt.\n');
 lgr$info('Teste Hypothese 1: Die Teilnehmer der Experimentalgruppe \"Erst negativ, dann positiv\" zeigen weniger Allophilie als die Teilnehmer der Experimentalgruppe \"Erst positiv, dann negativ\". Die Nullhypothese lautet, dass kein Unterschied vorliegt.');
 testGroup = na.omit(dataToAnalyze[c(MEAN_ALLOPHILIA_ITEM, EXPERIMENTAL_CONDITION_ITEM)]);
 testGroup[EXPERIMENTAL_CONDITION_ITEM] = as.integer(testGroup[,EXPERIMENTAL_CONDITION_ITEM]);
 testResults = unlist(t.test(testGroup[,MEAN_ALLOPHILIA_ITEM] ~ testGroup[,EXPERIMENTAL_CONDITION_ITEM], alternative = 'greater', var.equal = TRUE, conf.level = 1 - SIGNIFICANCE_LEVEL));   # pos/neg = 1, neg/pos = 2, also ist pos/neg Gruppe 1 und mit 'greater' neg/pos Gruppe 2 und es wird pos/neg > neg/pos getestet.
-lgr$info('Die Experimentalgruppe \"Erst negativ, dann positiv\" zeigt nicht signifikant mehr Allophilie als die Experimentalgruppe \"Erst positiv, dann negativ.\" (t(%i) = %.4f, p = %.4f). Damit ist die Nullhypothese zu akzeptieren.',
+lgr$info('Die Experimentalgruppe \"Erst negativ, dann positiv\" zeigt nicht signifikant mehr Allophilie als die Experimentalgruppe \"Erst positiv, dann negativ.\" (t(%i) = %.4f, p = %.4f). Damit ist die Nullhypothese zu akzeptieren.\n',
          as.numeric(testResults[2]), as.numeric(testResults[1]), as.numeric(testResults[3]));
 rm(testGroup, testResults);
 
 lgr$info('Teste Hypothese 2: Die Teilnehmer der \"Erst negativ, dann positiv\" zeigen weniger Interaktionsbereitschaft als die Teilnehmer der Experimentalgruppe \"Erst positiv, dann negativ\". Die Nullhypothese lautet, dass kein Unterschied vorliegt.');
 testGroup = na.omit(dataToAnalyze[c(MEAN_INTERAKTIONSBEREITSCHAFT_ITEM, EXPERIMENTAL_CONDITION_ITEM)]);
 testResults = unlist(t.test(testGroup[,MEAN_INTERAKTIONSBEREITSCHAFT_ITEM] ~ testGroup[,EXPERIMENTAL_CONDITION_ITEM], alternative = 'greater', var.equal = TRUE, conf.level = 1 - SIGNIFICANCE_LEVEL));   # pos/neg = 1, neg/pos = 2, also ist pos/neg Gruppe 1 und mit 'greater' neg/pos Gruppe 2 und es wird pos/neg > neg/pos getestet.
-lgr$info('Die Experimentalgruppe \"Erst negativ, dann positiv\" zeigt nicht signifikant mehr Interaktionsbereitschaft als die Teilnehmer der Experimentalgruppe \"Erst positiv, dann negativ\" (t(%i) = %.4f, p = %.4f). Damit ist die Nullhypothese zu akzeptieren.',
+lgr$info('Die Experimentalgruppe \"Erst negativ, dann positiv\" zeigt nicht signifikant mehr Interaktionsbereitschaft als die Teilnehmer der Experimentalgruppe \"Erst positiv, dann negativ\" (t(%i) = %.4f, p = %.4f). Damit ist die Nullhypothese zu akzeptieren.\n',
          as.numeric(testResults[2]), as.numeric(testResults[1]), as.numeric(testResults[3]));
-lgr$info('\nThat\'s all Folks! *Looney Tunes-Musik*');
+lgr$info('That\'s all Folks! *Looney Tunes-Musik*');
 
 print('Skript wurde erfolgreich ausgeführt.');
