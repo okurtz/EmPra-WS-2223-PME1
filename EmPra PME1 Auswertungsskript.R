@@ -148,9 +148,9 @@ deleteRows = function(rawData) {
     lgr$info('Alle Teilnehmer haben angegeben, ernsthaft teilgenommen zu haben. Lösche nichts.');
   } else {
     lgr$info('Habe %i Teilnehmer-Datensätze gefunden, die als nicht-ernst gekennzeichnet sind oder keine Ernsthaftigkeitsangabe haben. Lösche die betroffenen Datensätze.', nonSeriousParticipations);
+    rawData = rawData[rawData[SERIOUS_PARTICIPATION_ITEM] == SERIOUS_PARTICIPATION_VALUE,];
+    rowsDeleted = rowsDeleted + nonSeriousParticipations;
   }
-  rawData = rawData[rawData[SERIOUS_PARTICIPATION_ITEM] == SERIOUS_PARTICIPATION_VALUE,];
-  rowsDeleted = rowsDeleted + nonSeriousParticipations;
   
   countMissingParticipationAgreement = nrow(rawData[rawData[STUDY_PARTICIPATION_AGREEMENT_ITEM] != I_AGREE_TO_PARTICIPATE_IN_THE_STUDY_VALUE,]);
   if(countMissingParticipationAgreement == 0) {
