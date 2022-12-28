@@ -307,6 +307,7 @@ removeOutliers = function(rawData, sds = 2) {
     return(rawData);
   }
   
+  lgr$info('Die Antworten eines Teilnehmers auf einer Skala werden als Ausreißer angesehen, wenn der Mittelwert seiner Antworten außerhalb von +- %i Standardabweichungen um den Skalen-Mittelwert liegt.', sds);
   lgr$info('Achtung: \"Entfernen\" von Ausreißern bedeutet zunächst nur, dass Ausreißer-Antworten auf \"NA\" gesetzt werden. Es wird nicht sofort der gesamte Datensatz gelöscht.\n');
   outliers = (bind_rows(removeOutliersInternal('Positive Affekte', AFFECTION_ITEMS)) %>%
              bind_rows(removeOutliersInternal('Enthusiasmus', ENTHUSIASM_ITEMS)) %>%
