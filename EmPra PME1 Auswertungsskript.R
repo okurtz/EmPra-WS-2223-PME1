@@ -332,6 +332,7 @@ removeOutliers = function(rawData, sds = 2) {
     for(i in 1:length(tripleOutliers)) {
       rawData = rawData[rawData[ROW_ID] != rownames(tripleOutliers)[i],];
     }
+    rownames(rawData) = NULL;   # Zeilennummern werden nicht automatisch aktualisiert, dieser Befehl holt das nach.
   }
   unlink(OUTLIER_DUMP_PATH);
   write.csv(outliers, OUTLIER_DUMP_PATH, row.names = FALSE);
@@ -394,6 +395,7 @@ preprocessData = function(fileName) {
     c(AFFECTION_SORT_ORDER_CHEAT_NAME, ENTHUSIASM_SORT_ORDER_CHEAT_NAME, ALLOPHILIA_SORT_ORDER_CHEAT_NAME, INTERAKTIONSBEREITSCHAFT_SORT_ORDER_CHEAT_NAME),
     c(MEAN_AFFECTION_ITEM, MEAN_ENTHUSIASM_ITEM, MEAN_ALLOPHILIA_ITEM, MEAN_INTERAKTIONSBEREITSCHAFT_ITEM)
   );
+  
   lgr$info('Vorverarbeitung der Rohdaten abgeschlossen. Speichere die vorverarbeiteten Daten in der Datei \"%s\".', PROCESSED_DATA_FILE_NAME);
   saveRDS(rawData, file = paste(getwd(), PROCESSED_DATA_FILE_NAME, sep='/'));
 }
