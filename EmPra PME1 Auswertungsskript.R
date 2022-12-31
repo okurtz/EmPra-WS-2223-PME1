@@ -12,8 +12,8 @@ REMOVE_OUTLIERS = TRUE;                           # TRUE: Ausreißer werden ermi
 
 # Technische Einstellungen
 PROCESSED_DATA_FILE_NAME = paste(unlist(strsplit(SOURCE_FILE_NAME, '\\.'))[1], '.RDS', sep='');
-VERSION_NUMBER = 'v0.0.6';
-VERSION_DATE = '28. Dezember 2022';
+VERSION_NUMBER = 'v0.0.7';
+VERSION_DATE = '31. Dezember 2022';
 
 # Item-Aliase
 AFFECTION_ITEMS = c('v_52', 'v_53', 'v_54');
@@ -413,14 +413,11 @@ lgr$config(list(
 ));
 newLogSection(sprintf('Datenaufbereitungsskript EmPra WS 22/23 Gruppe 1, %s, %s', VERSION_NUMBER, VERSION_DATE), FALSE);
 
-if(!file.exists(PROCESSED_DATA_FILE_NAME)) {
-  lgr$info('Konnte die Datei \"%s\" nicht finden. Greife auf die Originaldaten zurück.', PROCESSED_DATA_FILE_NAME);
-  preprocessData(SOURCE_FILE_NAME);
-} else {
-  lgr$info('Habe Datei \"%s\" gefunden und verwende sie nun. Um die Bereinigung der Originaldaten neu auszulösen und die Verarbeitungsschritte im Log auszugeben, bitte die Datei \"%s\" löschen und das Skript neu starten.',
-           PROCESSED_DATA_FILE_NAME, PROCESSED_DATA_FILE_NAME);
+if(file.exists(PROCESSED_DATA_FILE_NAME)) {
+  lgr$info('Ich habe die Datei \"%s\" gefunden, die anscheinend einen vorverarbeiteten Datensatz enthält. Ich weiß nicht, mit welcher Version des Skripts diese Datei erzeugt worden ist und ob die Daten darin so aufbereitet worden sind, wie ich es tun würde. Ich lösche die Datei also besser und fange nochmal von vorne an.', PROCESSED_DATA_FILE_NAME);
+  unlink(PROCESSED_DATA_FILE_NAME);
 }
-
+preprocessData(SOURCE_FILE_NAME);
 dataToAnalyze = readRDS(PROCESSED_DATA_FILE_NAME);
 
 newLogSection('Deskriptive Statistiken');
